@@ -1,9 +1,12 @@
 import { StringUtil } from "../util/StringUtil";
 import { ApiType } from "./ApiType";
 import { Archive } from "./Archive";
+import type { CacheDecodeProfile } from "./CacheDecodeProfile";
+import { resolveCacheDecodeProfile } from "./CacheDecodeProfile";
 import { CacheFiles } from "./CacheFiles";
+import type { CacheInfo } from "./CacheInfo";
 import { CacheIndex, CacheIndexDat, CacheIndexDat2, LegacyCacheIndex } from "./CacheIndex";
-import { CacheType } from "./CacheType";
+import { detectCacheType } from "./CacheType";
 import { IndexType } from "./IndexType";
 import { PresenceBitset } from "./js5/PresenceBitset";
 import { MemoryStore } from "./store/MemoryStore";
@@ -41,7 +44,7 @@ export class CacheSystem<A extends ApiType = ApiType.SYNC> {
         }
     }
 
-    static loadLegacy(cacheFiles: CacheFiles): CacheSystem {
+    static loadLegacy(cacheFiles: CacheFiles, cacheInfo: CacheInfo): CacheSystem {
         const configData = cacheFiles.files.get("config");
         if (!configData) {
             throw new Error("Missing config file");
@@ -88,19 +91,25 @@ export class CacheSystem<A extends ApiType = ApiType.SYNC> {
             mapArchiveNameHashes,
         );
 
-        return new CacheSystem([configIndex, mediaIndex, textureIndex, modelIndex, mapIndex]);
+        return new CacheSystem(
+            [configIndex, mediaIndex, textureIndex, modelIndex, mapIndex],
+            undefined,
+            undefined,
+            cacheInfo,
+        );
     }
 
     static fromFiles(
-        cacheType: CacheType,
+        cacheInfo: CacheInfo,
         cacheFiles: CacheFiles,
         indicesToLoad: number[] = [],
         /** When set, builds a SparseMemoryStore over a partially-downloaded dat2. */
         presence?: PresenceBitset,
     ): CacheSystem {
+        const cacheType = detectCacheType(cacheInfo);
         switch (cacheType) {
             case "legacy":
-                return CacheSystem.loadLegacy(cacheFiles);
+                return CacheSystem.loadLegacy(cacheFiles, cacheInfo);
             case "dat":
             case "dat2":
                 const store =
@@ -108,7 +117,7 @@ export class CacheSystem<A extends ApiType = ApiType.SYNC> {
                         ? SparseMemoryStore.fromSparseFiles(cacheFiles, presence, indicesToLoad)
                         : MemoryStore.fromFiles(cacheFiles, indicesToLoad);
                 const indices = CacheSystem.loadIndicesFromStore(cacheType, store);
-                return new CacheSystem(indices, store, cacheType);
+                return new CacheSystem(indices, store, cacheType, cacheInfo);
         }
         throw new Error("Not implemented");
     }
@@ -116,15 +125,18 @@ export class CacheSystem<A extends ApiType = ApiType.SYNC> {
     readonly indices: (CacheIndex<A> | undefined)[];
     private readonly store?: MemoryStore;
     private readonly cacheType?: "dat" | "dat2";
+    readonly decodeProfile: CacheDecodeProfile;
 
     constructor(
         indices: (CacheIndex<A> | undefined)[],
         store?: MemoryStore,
         cacheType?: "dat" | "dat2",
+        cacheInfo?: CacheInfo,
     ) {
         this.indices = indices;
         this.store = store;
         this.cacheType = cacheType;
+        this.decodeProfile = resolveCacheDecodeProfile(cacheInfo);
     }
 
     /**

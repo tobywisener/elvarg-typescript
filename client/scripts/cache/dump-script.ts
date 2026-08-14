@@ -6,13 +6,13 @@ import { loadCache, loadCacheInfos, loadCacheList } from "./load-util";
 const caches = loadCacheInfos();
 const cacheInfo = loadCacheList(caches).latest;
 const loaded = loadCache(cacheInfo);
-const cacheSystem = CacheSystem.fromFiles("dat2", loaded.files);
+const cacheSystem = CacheSystem.fromFiles(cacheInfo, loaded.files);
 const index = cacheSystem.getIndex(IndexType.DAT2.clientScript);
 
 const scriptId = parseInt(process.argv[2] || "4125", 10);
 const arch = index.getArchive(scriptId);
 const file = arch.getFile(0);
-const script = parseScriptFromBytes(scriptId, file!.data);
+const script = parseScriptFromBytes(scriptId, file!.data, cacheSystem.decodeProfile);
 
 console.log(`Script ${scriptId}:`);
 console.log(`  intArgCount: ${script.intArgCount}`);

@@ -699,7 +699,7 @@ function exportItems() {
     }
     const loaded = loadCache(cacheInfo);
 
-    const cacheSystem = CacheSystem.fromFiles(loaded.type, loaded.files);
+    const cacheSystem = CacheSystem.fromFiles(cacheInfo, loaded.files);
     const loaderFactory = getCacheLoaderFactory(cacheInfo, cacheSystem);
     const objTypeLoader = loaderFactory.getObjTypeLoader();
 

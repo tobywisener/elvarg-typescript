@@ -36,7 +36,7 @@ const cacheInfo = cacheList.latest;
 
 const loadedCache = loadCache(cacheInfo);
 
-const cacheSystem = CacheSystem.fromFiles(loadedCache.type, loadedCache.files);
+const cacheSystem = CacheSystem.fromFiles(cacheInfo, loadedCache.files);
 const cacheLoaderFactory = getCacheLoaderFactory(cacheInfo, cacheSystem);
 
 const textureLoader = cacheLoaderFactory.getTextureLoader();

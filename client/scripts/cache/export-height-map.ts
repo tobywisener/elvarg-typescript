@@ -41,7 +41,7 @@ const cacheInfo = cacheList.latest;
 
 const loadedCache = loadCache(cacheInfo);
 
-const cacheSystem = CacheSystem.fromFiles(loadedCache.type, loadedCache.files);
+const cacheSystem = CacheSystem.fromFiles(cacheInfo, loadedCache.files);
 const loaderFactory = getCacheLoaderFactory(cacheInfo, cacheSystem);
 
 const underlayTypeLoader = loaderFactory.getUnderlayTypeLoader();

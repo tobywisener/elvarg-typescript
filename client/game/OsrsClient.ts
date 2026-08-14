@@ -5778,7 +5778,7 @@ export class OsrsClient {
         this.clientScripts.clear();
 
         const presence = cache.sparse ? new PresenceBitset(cache.sparse.presenceBits) : undefined;
-        this.cacheSystem = CacheSystem.fromFiles(cache.type, cache.files, [], presence);
+        this.cacheSystem = CacheSystem.fromFiles(cache.info, cache.files, [], presence);
 
         // On-demand group fetching over HTTP Range requests (js5-style):
         // reads of not-yet-downloaded groups queue a fetch and retry later.

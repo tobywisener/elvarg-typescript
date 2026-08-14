@@ -35,7 +35,11 @@ export class ClientScriptLoader {
                 return null;
             }
 
-            const script = parseScriptFromBytes(scriptId, file.data);
+            const script = parseScriptFromBytes(
+                scriptId,
+                file.data,
+                this.deps.getCacheSystem().decodeProfile,
+            );
             this.cacheClientScript(scriptId, script);
             return script;
         } catch (e) {
@@ -58,7 +62,11 @@ export class ClientScriptLoader {
             const arch = scriptIdx.getArchive(scriptId | 0);
             const file = arch?.getFile(0);
             if (!file?.data) return null;
-            const script = parseScriptFromBytes(scriptId | 0, file.data);
+            const script = parseScriptFromBytes(
+                scriptId | 0,
+                file.data,
+                this.deps.getCacheSystem().decodeProfile,
+            );
             this.cacheClientScript(scriptId | 0, script);
             return script;
         } catch {

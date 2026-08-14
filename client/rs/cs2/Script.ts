@@ -1,3 +1,7 @@
+import {
+    type CacheDecodeProfile,
+    DEFAULT_CACHE_DECODE_PROFILE,
+} from "../cache/CacheDecodeProfile";
 import { ByteBuffer } from "../io/ByteBuffer";
 
 export class Script {
@@ -26,7 +30,11 @@ export const Opcodes = {
     PUSH_NULL: 63,
 };
 
-export function parseScriptFromBytes(id: number, data: Int8Array): Script {
+export function parseScriptFromBytes(
+    id: number,
+    data: Int8Array,
+    profile: CacheDecodeProfile = DEFAULT_CACHE_DECODE_PROFILE,
+): Script {
     const def = new Script();
     def.id = id;
     const inBuf = new ByteBuffer(data);
@@ -34,15 +42,15 @@ export function parseScriptFromBytes(id: number, data: Int8Array): Script {
     inBuf.offset = inBuf.length - 2;
     const switchLength = inBuf.readUnsignedShort();
 
-    const endIdx = inBuf.length - 2 - switchLength - 16;
+    const endIdx = inBuf.length - 2 - switchLength - (profile.clientScriptLongCounts ? 16 : 12);
     inBuf.offset = endIdx;
     const numOpcodes = inBuf.readInt();
     const localIntCount = inBuf.readUnsignedShort();
     const localObjCount = inBuf.readUnsignedShort();
-    const localLongCount = inBuf.readUnsignedShort();
+    const localLongCount = profile.clientScriptLongCounts ? inBuf.readUnsignedShort() : 0;
     const intArgCount = inBuf.readUnsignedShort();
     const objArgCount = inBuf.readUnsignedShort();
-    const longArgCount = inBuf.readUnsignedShort();
+    const longArgCount = profile.clientScriptLongCounts ? inBuf.readUnsignedShort() : 0;
 
     const numSwitches = inBuf.readUnsignedByte();
     if (numSwitches > 0) {

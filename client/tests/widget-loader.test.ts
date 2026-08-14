@@ -4,10 +4,8 @@ import { CacheSystem } from "../rs/cache/CacheSystem";
 import { WidgetLoader } from "../widgets/WidgetLoader";
 import { loadCache, loadCacheInfos, loadCacheList } from "../scripts/cache/load-util";
 
-const cache = CacheSystem.fromFiles(
-    "dat2",
-    loadCache(loadCacheList(loadCacheInfos()).latest).files,
-);
+const cacheInfo = loadCacheList(loadCacheInfos()).latest;
+const cache = CacheSystem.fromFiles(cacheInfo, loadCache(cacheInfo).files);
 const bank = new WidgetLoader(cache).loadWidgetGroup(12);
 const model = bank?.widgets.get((12 << 16) | 55);
 

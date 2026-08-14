@@ -118,7 +118,7 @@ async function initWorker(cache: LoadedCache, npcInstances: NpcInstance[]): Prom
     // context are visible here; otherwise this worker fetches independently).
     const presence = cache.sparse ? new PresenceBitset(cache.sparse.presenceBits) : undefined;
     const cacheSystem = CacheSystem.fromFiles(
-        cache.type,
+        cache.info,
         cache.files,
         requiredIndexIds(cache),
         presence,

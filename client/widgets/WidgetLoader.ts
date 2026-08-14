@@ -414,8 +414,12 @@ export class WidgetLoader {
             w.flippedV = buf.readUnsignedByte() === 1;
             w.flippedH = buf.readUnsignedByte() === 1;
         } else if (type === 6) {
-            const modelId = buf.readUnsignedShort();
-            w.modelId = modelId === 0xffff ? -1 : modelId;
+            if (this.cache.decodeProfile.if3ModelIdBytes === 2) {
+                const modelId = buf.readUnsignedShort();
+                w.modelId = modelId === 0xffff ? -1 : modelId;
+            } else {
+                w.modelId = buf.readInt();
+            }
             w.modelOffsetX = buf.readShort();
             w.modelOffsetY = buf.readShort();
             w.rotationX = buf.readUnsignedShort();
