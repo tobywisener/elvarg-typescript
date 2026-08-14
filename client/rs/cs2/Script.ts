@@ -34,15 +34,17 @@ export function parseScriptFromBytes(id: number, data: Int8Array): Script {
     inBuf.offset = inBuf.length - 2;
     const switchLength = inBuf.readUnsignedShort();
 
-    const endIdx = inBuf.length - 2 - switchLength - 16;
+    // This footer has 4 count fields (12 bytes total for numOpcodes + 4 shorts),
+    // not 6 - this format has no separate long-local/long-arg counts, unlike
+    // some other cs2 script dialects. localLongCount/longArgCount stay at the
+    // Script class's default of 0.
+    const endIdx = inBuf.length - 2 - switchLength - 12;
     inBuf.offset = endIdx;
     const numOpcodes = inBuf.readInt();
     const localIntCount = inBuf.readUnsignedShort();
     const localObjCount = inBuf.readUnsignedShort();
-    const localLongCount = inBuf.readUnsignedShort();
     const intArgCount = inBuf.readUnsignedShort();
     const objArgCount = inBuf.readUnsignedShort();
-    const longArgCount = inBuf.readUnsignedShort();
 
     const numSwitches = inBuf.readUnsignedByte();
     if (numSwitches > 0) {
@@ -64,10 +66,8 @@ export function parseScriptFromBytes(id: number, data: Int8Array): Script {
 
     def.localIntCount = localIntCount;
     def.localObjCount = localObjCount;
-    def.localLongCount = localLongCount;
     def.intArgCount = intArgCount;
     def.objArgCount = objArgCount;
-    def.longArgCount = longArgCount;
 
     inBuf.offset = 0;
     def.name = inBuf.readNullString(); // script name
