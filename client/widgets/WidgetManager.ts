@@ -487,6 +487,18 @@ export class WidgetManager {
                     this.invalidateWidget(group.root, "resize");
                 }
             }
+            // Re-run onResize handlers for everything already mounted. Many interfaces
+            // (notably the 161 gameframe) size their panes from CS2 rather than from
+            // layout modes alone, so invalidating layout is not enough - without this,
+            // a group that mounted before the canvas size was known keeps the sizes its
+            // scripts computed against the old dimensions. That is what leaves the
+            // gameframe's viewport pane full-screen (no reserved sidebar/inventory area)
+            // whenever the initial resize lands after the interface opens.
+            for (const group of this.groups.values()) {
+                if (group.root) {
+                    this.triggerOnResize(group.root);
+                }
+            }
             // Also mark all render regions as dirty
             this.invalidateAll();
         }
