@@ -737,12 +737,6 @@ export class RegionManager {
         return this.canMove(position.getX(), position.getY(), end.getX(), end.getY(), position.getZ(), size, size, privateArea);
     }
 
-    private static createEmptyClipGrid(): number[][][] {
-        return Array.from({ length: 4 }, () =>
-            Array.from({ length: 64 }, () => new Array(64).fill(0))
-        );
-    }
-
     private static clearRegionMapObjects(regionId: number): void {
         const absX = ((regionId >> 8) & 0xff) * 64;
         const absY = (regionId & 0xff) * 64;
@@ -763,7 +757,7 @@ export class RegionManager {
         }
         RegionManager.loadingRegions.delete(regionId);
         RegionManager.clearRegionMapObjects(regionId);
-        region.clips = RegionManager.createEmptyClipGrid();
+        region.clips = undefined;
         region.setLoaded(false);
 
         const absX = ((regionId >> 8) & 0xff) * 64;

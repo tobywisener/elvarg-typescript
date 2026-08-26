@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { Region } from "../src/main/typescript/elvarg/game/collision/Region";
 
 const sourceRoot = path.resolve(process.cwd(), "src/main/typescript/elvarg");
 const movement = fs.readFileSync(
@@ -30,4 +31,14 @@ assert.doesNotMatch(objects, /isWithinDistance\(object\.getLocation\(\), 64\)/);
 assert.match(replacements, /session\.sendClientPacket\(encodeRegionReplacement/);
 assert.doesNotMatch(replacements, /PacketBuilder|PACKET_OPCODE/);
 
-console.log("Region loading policy smoke test passed");
+const region = new Region(0, 0, 0);
+assert.equal(region.clips, undefined);
+assert.equal(region.getClip(0, 0, 0), 0);
+assert.equal(region.clips, undefined);
+region.addClip(0, 0, 0, 0x200000);
+assert.equal(region.getClip(0, 0, 0), 0x200000);
+assert.notEqual(region.clips, undefined);
+region.removeClip(0, 0, 0, 0x200000);
+assert.equal(region.getClip(0, 0, 0), 0);
+
+console.log("Region loading and clip policy smoke test passed");

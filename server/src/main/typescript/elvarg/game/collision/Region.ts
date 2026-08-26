@@ -4,7 +4,7 @@ export class Region {
     private regionId: number;
     private terrainFile: number;
     private objectFile: number;
-    public clips: number[][][] = Region.createClipGrid();
+    public clips?: number[][][];
     private loaded: boolean;
 
     constructor(regionId: number, terrainFile: number, objectFile: number) {
@@ -34,13 +34,17 @@ export class Region {
         let regionAbsY = (this.regionId & 0xff) * 64;
         if (height < 0 || height >= 4)
             height = 0;
-        if (!this.clips[height] || this.clips[height].length !== 64) {
-            this.clips[height] = Array.from({ length: 64 }, () => new Array(64).fill(0));
+        const clips = this.clips;
+        if (!clips) {
+            return 0;
         }
-        if (!this.clips[height][x - regionAbsX]) {
-            this.clips[height][x - regionAbsX] = new Array(64).fill(0);
+        if (!clips[height] || clips[height].length !== 64) {
+            clips[height] = Array.from({ length: 64 }, () => new Array(64).fill(0));
         }
-        return this.clips[height][x - regionAbsX][y - regionAbsY] || 0;
+        if (!clips[height][x - regionAbsX]) {
+            clips[height][x - regionAbsX] = new Array(64).fill(0);
+        }
+        return clips[height][x - regionAbsX][y - regionAbsY] || 0;
     }
 
     public addClip(x: number, y: number, height: number, shift: number): void {
@@ -48,26 +52,31 @@ export class Region {
         let regionAbsY = (this.regionId & 0xff) * 64;
         if (height < 0 || height >= 4)
             height = 0;
-        if (!this.clips[height] || this.clips[height].length !== 64) {
-            this.clips[height] = Array.from({ length: 64 }, () => new Array(64).fill(0));
+        const clips = this.clips ??= Region.createClipGrid();
+        if (!clips[height] || clips[height].length !== 64) {
+            clips[height] = Array.from({ length: 64 }, () => new Array(64).fill(0));
         }
-        if (!this.clips[height][x - regionAbsX]) {
-            this.clips[height][x - regionAbsX] = new Array(64).fill(0);
+        if (!clips[height][x - regionAbsX]) {
+            clips[height][x - regionAbsX] = new Array(64).fill(0);
         }
-        this.clips[height][x - regionAbsX][y - regionAbsY] |= shift;
+        clips[height][x - regionAbsX][y - regionAbsY] |= shift;
     }
     public removeClip(x: number, y: number, height: number, shift: number): void {
         let regionAbsX: number = (this.regionId >> 8) * 64;
         let regionAbsY: number = (this.regionId & 0xff) * 64;
         if (height < 0 || height >= 4)
             height = 0;
-        if (!this.clips[height] || this.clips[height].length !== 64) {
-            this.clips[height] = Array.from({ length: 64 }, () => new Array(64).fill(0));
+        const clips = this.clips;
+        if (!clips) {
+            return;
         }
-        if (!this.clips[height][x - regionAbsX]) {
-            this.clips[height][x - regionAbsX] = new Array(64).fill(0);
+        if (!clips[height] || clips[height].length !== 64) {
+            clips[height] = Array.from({ length: 64 }, () => new Array(64).fill(0));
         }
-        this.clips[height][x - regionAbsX][y - regionAbsY] &= ~shift;
+        if (!clips[height][x - regionAbsX]) {
+            clips[height][x - regionAbsX] = new Array(64).fill(0);
+        }
+        clips[height][x - regionAbsX][y - regionAbsY] &= ~shift;
     }
 
     public getLocalPosition(position: Location): number[] {
