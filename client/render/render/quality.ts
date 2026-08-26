@@ -1,4 +1,5 @@
 import Denque from "denque";
+import { computeSceneViewportRect, type SceneViewportInput } from "./viewportRect";
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { button, folder } from "leva";
 import { Schema } from "leva/dist/declarations/src/types";
@@ -479,38 +480,14 @@ export function shouldUseDirectTextureScenePass(host: WebGLOsrsRendererHost, ): 
 export function getSceneViewportWidgetRect(host: WebGLOsrsRendererHost, ): { x: number; y: number; width: number; height: number } {
 
         const widgetManager = host.osrsClient.widgetManager;
-        const viewport = widgetManager?.viewportWidget as any;
-        const fallbackWidth = Math.max(1, (host.app.width || host.canvas.width || 1) | 0);
-        const fallbackHeight = Math.max(1, (host.app.height || host.canvas.height || 1) | 0);
-        const layoutWidth = Math.max(1, (widgetManager?.canvasWidth || fallbackWidth) | 0);
-        const layoutHeight = Math.max(1, (widgetManager?.canvasHeight || fallbackHeight) | 0);
-        const scaleX = fallbackWidth / layoutWidth;
-        const scaleY = fallbackHeight / layoutHeight;
-        const rawX =
-            typeof viewport?._absLogicalX === "number"
-                ? viewport._absLogicalX
-                : typeof viewport?._absX === "number"
-                    ? Math.round(viewport._absX / scaleX)
-                    : typeof viewport?.x === "number"
-                        ? viewport.x
-                        : 0;
-        const rawY =
-            typeof viewport?._absLogicalY === "number"
-                ? viewport._absLogicalY
-                : typeof viewport?._absY === "number"
-                    ? Math.round(viewport._absY / scaleY)
-                    : typeof viewport?.y === "number"
-                        ? viewport.y
-                        : 0;
-        const rawWidth = typeof viewport?.width === "number" ? viewport.width | 0 : fallbackWidth;
-        const rawHeight =
-            typeof viewport?.height === "number" ? viewport.height | 0 : fallbackHeight;
-
-        return {
-            x: Math.round(rawX * scaleX),
-            y: Math.round(rawY * scaleY),
-            width: Math.max(1, Math.round(rawWidth * scaleX)),
-            height: Math.max(1, Math.round(rawHeight * scaleY)),
-        };
+        const fallbackWidth = (host.app.width || host.canvas.width || 1) | 0;
+        const fallbackHeight = (host.app.height || host.canvas.height || 1) | 0;
+        return computeSceneViewportRect({
+            fallbackWidth,
+            fallbackHeight,
+            layoutWidth: (widgetManager?.canvasWidth || fallbackWidth) | 0,
+            layoutHeight: (widgetManager?.canvasHeight || fallbackHeight) | 0,
+            viewport: widgetManager?.viewportWidget as SceneViewportInput["viewport"],
+        });
     
 }
