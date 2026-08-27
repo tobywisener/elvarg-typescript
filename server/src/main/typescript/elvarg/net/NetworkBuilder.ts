@@ -729,6 +729,10 @@ class ClientConnection {
     this.send(encodeDefaultAnimations());
     for (const packet of encodeGameframeBootstrap(player.getUsername())) this.send(packet);
     player.getPacketSender()
+      // The bootstrap mounts the magic tab (161:82 -> 218) directly, which does not send
+      // varbit 4070, so the cache scripts would draw the standard book for everyone.
+      // sendTabInterface(6) is the one place that publishes the spellbook varbit.
+      .sendTabInterface(6, player.getSpellbook().getInterfaceId())
       .sendItemContainer(player.getInventory(), 3214)
       .sendSkillsSnapshot()
       .sendRunEnergy();
