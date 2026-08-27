@@ -217,7 +217,7 @@ export class GfxRenderer {
         };
 
         if (playerOffset !== undefined) {
-            const playerEntries = this.mgr.getAttachedPlayersForMap(map.mapX, map.mapY);
+            const playerEntries = this.mgr.getAttachedPlayersForMap(map);
             renderAttachments(playerEntries, playerOffset, ({ inst }) => {
                 if (inst.anchor === "offset") {
                     const tiles = inst.yOffsetTiles ?? 0;

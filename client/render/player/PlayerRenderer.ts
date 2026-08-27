@@ -2608,7 +2608,7 @@ export class PlayerRenderer {
         this.framePlayerAlphaCounts.clear();
     }
 
-    private getRenderPlayersForMap(map: WebGLMapSquare): number[] {
+    getRenderPlayersForMap(map: WebGLMapSquare): number[] {
         this.resetRenderSelectionFrameIfNeeded();
 
         const key = ((map.mapX & 0xffff) << 16) | (map.mapY & 0xffff);

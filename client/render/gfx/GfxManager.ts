@@ -1,5 +1,4 @@
 import { getClientCycle } from "../../network/ServerConnection";
-import { getMapIndexFromTile } from "../../rs/map/MapFileIndex";
 import type { WebGLMapSquare } from "../WebGLMapSquare";
 import type { WebGLOsrsRenderer } from "../WebGLOsrsRenderer";
 
@@ -246,8 +245,7 @@ export class GfxManager {
      * along with resolved ECS indices and per-map slot order.
      */
     getAttachedPlayersForMap(
-        mapX: number,
-        mapY: number,
+        map: WebGLMapSquare,
     ): Array<{
         inst: GfxInstance;
         pid: number; // ECS player index
@@ -255,26 +253,8 @@ export class GfxManager {
     }> {
         const out: Array<{ inst: GfxInstance; pid: number; slot: number }> = [];
         const pe: any = this.renderer.osrsClient.playerEcs as any;
-        const n = pe?.size?.() ?? 0;
-        // Build pid list matching addPlayerRenderData ordering
-        const pidsInMap: number[] = [];
-        for (let i = 0; i < n; i++) {
-            const px = (pe.getX?.(i) ?? 0) | 0;
-            const py = (pe.getY?.(i) ?? 0) | 0;
-            const tileX = (px / 128) | 0;
-            const tileY = (py / 128) | 0;
-            if (!this.renderer.shouldRenderPlayerIndex(i)) continue;
-            if (getMapIndexFromTile(tileX) === mapX && getMapIndexFromTile(tileY) === mapY)
-                pidsInMap.push(i);
-        }
+        const pidsInMap = this.renderer.playerRenderer.getRenderPlayersForMap(map);
         if (pidsInMap.length === 0) return out;
-        // Map serverId -> pid for quick lookup
-        const sidToPid = new Map<number, number>();
-        for (const pid of pidsInMap) {
-            const sid = pe.getServerIdForIndex?.(pid);
-            if (typeof sid === "number" && sid > 0) sidToPid.set(sid | 0, pid | 0);
-        }
-        // Emit instances that attach to players present in this map, preserving slot order
         const nowCycle = getClientCycle() | 0;
         for (let slot = 0; slot < pidsInMap.length; slot++) {
             const pid = pidsInMap[slot] | 0;
