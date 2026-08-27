@@ -624,18 +624,34 @@ export class WidgetsOverlay implements Overlay {
             1,
             Math.min(this.glRenderer.width - rectX, Math.round(viewportWidth * this.overlayScaleX)),
         );
-        const rectHeight = Math.max(1, Math.min(this.glRenderer.height - rectY, 20 * this.overlayScaleY));
+        const { x: uiScaleX, y: uiScaleY } = this.getOverlayTextScale();
+        const rectHeight = Math.max(1, Math.min(this.glRenderer.height - rectY, 20 * uiScaleY));
         if (rectX >= this.glRenderer.width || rectY >= this.glRenderer.height) {
             return { signature: "hidden" };
         }
 
         return {
-            signature: `visible:${text}:${rectX}:${rectY}:${this.overlayScaleX}:${this.overlayScaleY}`,
+            signature: `visible:${text}:${rectX}:${rectY}:${uiScaleX}:${uiScaleY}`,
             text,
             rect: { x: rectX, y: rectY, w: rectWidth, h: rectHeight },
-            x: rectX + Math.round(4 * this.overlayScaleX),
-            y: rectY + Math.round(3 * this.overlayScaleY),
+            x: rectX + Math.round(4 * uiScaleX),
+            y: rectY + Math.round(3 * uiScaleY),
         };
+    }
+
+    /**
+     * Device pixels per layout pixel for text this overlay draws itself.
+     *
+     * overlayScaleX/Y alone is 1 on desktop (targetUiScale === mainScaleX), so it does NOT
+     * account for HiDPI - the widget tree gets there by combining it with the renderer's
+     * scale (see __widgetRenderScale usage in prepareWidgetEntry). Overlay-drawn text needs
+     * the same combination or it renders at 1x into a device-pixel buffer, i.e. half size
+     * on a 2x display. __uiRenderScale is the same source choose-option.ts uses.
+     */
+    private getOverlayTextScale(): { x: number; y: number } {
+        const renderScale = (this.overlayCanvas as any)?.__uiRenderScale;
+        const base = typeof renderScale === "number" && renderScale > 0 ? renderScale : 1;
+        return { x: base * this.overlayScaleX, y: base * this.overlayScaleY };
     }
 
     draw(phase: RenderPhase): void {
@@ -867,12 +883,14 @@ export class WidgetsOverlay implements Overlay {
         const bounds = roots
             .map((root: any) => `${root?._absX ?? root?.x ?? 0},${root?._absY ?? root?.y ?? 0}`)
             .join(";");
-        return `visible:${value}:${bounds}`;
+        const { x: uiScaleX, y: uiScaleY } = this.getOverlayTextScale();
+        return `visible:${value}:${bounds}:${uiScaleX}:${uiScaleY}`;
     }
 
     private drawMouseOverText(state: MouseOverTextVisualState): void {
         if (!state.text || !state.rect || !this.glRenderer) return;
 
+        const { x: uiScaleX, y: uiScaleY } = this.getOverlayTextScale();
         drawTextGL(
             this.glRenderer,
             this.ctx.getFontLoader?.() || (() => undefined),
@@ -880,7 +898,7 @@ export class WidgetsOverlay implements Overlay {
             state.x ?? state.rect.x,
             state.y ?? state.rect.y,
             state.rect.w,
-            Math.max(1, Math.round(16 * this.overlayScaleY)),
+            Math.max(1, Math.round(16 * uiScaleY)),
             FONT_BOLD_12,
             0xffffff,
             0,
@@ -888,8 +906,8 @@ export class WidgetsOverlay implements Overlay {
             true,
             1,
             undefined,
-            this.overlayScaleX,
-            this.overlayScaleY,
+            uiScaleX,
+            uiScaleY,
         );
         this.glRenderer.flush();
     }
@@ -901,21 +919,26 @@ export class WidgetsOverlay implements Overlay {
 
         const roots = widgetManager.getAllGroupRoots?.(162) ?? [];
         if (roots.length === 0) return;
-        const left = Math.min(...roots.map((w: any) => w?._absX ?? w?.x ?? 0));
-        const top = Math.min(...roots.map((w: any) => w?._absY ?? w?.y ?? 0));
-        const right = Math.max(
-            ...roots.map((w: any) => (w?._absX ?? w?.x ?? 0) + (w?.width ?? 0)),
-        );
-        const bottom = Math.max(
-            ...roots.map((w: any) => (w?._absY ?? w?.y ?? 0) + (w?.height ?? 0)),
-        );
+        // _absX/_absWidth are device space; x/width are layout space. Resolve everything
+        // into the device space this.glRenderer draws in - mixing the two put the right
+        // edge in the wrong place on any display where the two differ (HiDPI).
+        const { x: uiScaleX, y: uiScaleY } = this.getOverlayTextScale();
+        const deviceX = (w: any) => (w?._absX ?? (w?.x ?? 0) * uiScaleX) as number;
+        const deviceY = (w: any) => (w?._absY ?? (w?.y ?? 0) * uiScaleY) as number;
+        const deviceW = (w: any) => (w?._absWidth ?? (w?.width ?? 0) * uiScaleX) as number;
+        const deviceH = (w: any) => (w?._absHeight ?? (w?.height ?? 0) * uiScaleY) as number;
+
+        const left = Math.min(...roots.map(deviceX));
+        const top = Math.min(...roots.map(deviceY));
+        const right = Math.max(...roots.map((w: any) => deviceX(w) + deviceW(w)));
+        const bottom = Math.max(...roots.map((w: any) => deviceY(w) + deviceH(w)));
         const width = Math.max(1, right - left);
         // Preserve the channel tabs along the bottom of the normal chatbox.
-        const height = Math.max(72, bottom - top - 25);
-        const x = left + 4;
-        const y = top + 4;
-        const innerWidth = Math.max(1, width - 8);
-        const innerHeight = Math.max(1, height - 8);
+        const height = Math.max(72 * uiScaleY, bottom - top - 25 * uiScaleY);
+        const x = left + 4 * uiScaleX;
+        const y = top + 4 * uiScaleY;
+        const innerWidth = Math.max(1, width - 8 * uiScaleX);
+        const innerHeight = Math.max(1, height - 8 * uiScaleY);
 
         // Warm parchment tone approximates the native chatbox panel and masks
         // scrollback without changing the widget/layout tree beneath it.
@@ -928,12 +951,16 @@ export class WidgetsOverlay implements Overlay {
             x,
             y + Math.floor(innerHeight * 0.35),
             innerWidth,
-            20,
+            Math.max(1, Math.round(20 * uiScaleY)),
             FONT_VERDANA_13,
             0x000000,
             1,
             1,
             false,
+            1,
+            undefined,
+            uiScaleX,
+            uiScaleY,
         );
         drawTextGL(
             this.glRenderer,
@@ -942,12 +969,16 @@ export class WidgetsOverlay implements Overlay {
             x,
             y + Math.floor(innerHeight * 0.55),
             innerWidth,
-            20,
+            Math.max(1, Math.round(20 * uiScaleY)),
             FONT_VERDANA_13,
             0x0000ff,
             1,
             1,
             false,
+            1,
+            undefined,
+            uiScaleX,
+            uiScaleY,
         );
         this.glRenderer.flush();
     }
