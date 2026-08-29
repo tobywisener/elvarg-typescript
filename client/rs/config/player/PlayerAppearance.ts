@@ -18,6 +18,7 @@ export class PlayerAppearance {
     // 0 head/hair, 1 jaw/beard, 2 torso, 3 arms, 4 hands, 5 legs, 6 feet
     kits: number[];
     headIcons: { prayer?: number; skull?: number };
+    npcTransformationId: number;
 
     constructor(
         gender: Gender,
@@ -25,19 +26,22 @@ export class PlayerAppearance {
         kits: number[],
         equip?: number[],
         headIcons?: { prayer?: number; skull?: number },
+        npcTransformationId?: number,
     ) {
         this.gender = gender;
         this.colors = colors;
         this.kits = kits;
         this.equip = equip ?? new Array(14).fill(-1);
         this.headIcons = headIcons ?? { prayer: -1 };
+        this.npcTransformationId = npcTransformationId ?? -1;
     }
 
     // Polynomial rolling hash for caching composites
     getHash(): bigint {
         const MASK_64 = (1n << 64n) - 1n;
         const PRIME = 31n;
-        let h = BigInt(this.gender & 1);
+        let h = BigInt(this.npcTransformationId + 1);
+        h = (h * PRIME + BigInt(this.gender & 1)) & MASK_64;
         for (let i = 0; i < this.kits.length; i++) {
             const v = BigInt((this.kits[i] ?? -1) + 1);
             h = (h * PRIME + v) & MASK_64;
@@ -57,7 +61,7 @@ export class PlayerAppearance {
         const parts: number[] = [];
         const count = Math.min(this.equip.length, 14);
         for (let i = 0; i < count; i++) parts.push((this.equip[i] ?? -1) | 0);
-        return `${this.gender | 0}|${parts.join(",")}`;
+        return `${this.npcTransformationId | 0}|${this.gender | 0}|${parts.join(",")}`;
     }
 
     getCacheKey(): string {

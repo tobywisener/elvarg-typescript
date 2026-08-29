@@ -418,6 +418,14 @@ const appearance = encodePlayerAppearance(
   32,
   [808, 823, 819, 820, 821, 822, 824]
 );
+const npcAppearance = encodePlayerAppearance(
+  { gender: 0, colors: [0, 0, 0, 0, 0], kits: [], equip: [], npcTransformationId: 172 },
+  "Toby",
+  3,
+  32,
+  [808, 823, 819, 820, 821, 822, 824]
+);
+assert.deepStrictEqual([...npcAppearance.subarray(0, 7)], [0, 255, 255, 255, 255, 0, 172]);
 const playerState = createPlayerSyncState(1, { x: 3089, y: 3524, level: 0 });
 const activeSlots = playerState.active;
 const emptySlots = playerState.empty;

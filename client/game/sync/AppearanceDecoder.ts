@@ -63,6 +63,7 @@ export interface DecodedAppearance {
     gender: number;
     headIconPk: number;
     headIconPrayer: number;
+    npcTransformationId: number;
     equipment: number[];
     secondaryEquipment: number[];
     colors: number[];
@@ -193,15 +194,14 @@ export function decodeAppearanceBinary(buffer: Uint8Array): DecodedAppearance | 
         // 4. Equipment array (12 slots)
         const equipment: number[] = new Array(EQUIPMENT_SLOTS).fill(-1);
         const kits: number[] = new Array(8).fill(-1);
+        let npcTransformationId = -1;
 
         for (let slot = 0; slot < EQUIPMENT_SLOTS; slot++) {
             const result = decodeEquipmentSlot(reader);
 
             // Special case: NPC transform (slot 0 == 65535)
             if (slot === 0 && result.type === "item" && result.value === 65535 - 512) {
-                // NPC transform ID would be next unsigned short
-                // For now, we'll just skip this case
-                reader.readUnsignedShort();
+                npcTransformationId = reader.readUnsignedShort();
                 break;
             }
 
@@ -243,10 +243,12 @@ export function decodeAppearanceBinary(buffer: Uint8Array): DecodedAppearance | 
 
         // 5. Secondary equipment array (12 slots)
         const secondaryEquipment: number[] = new Array(EQUIPMENT_SLOTS).fill(-1);
-        for (let slot = 0; slot < EQUIPMENT_SLOTS; slot++) {
-            const result = decodeEquipmentSlot(reader);
-            if (result.type === "item") {
-                secondaryEquipment[slot] = result.value;
+        if (npcTransformationId === -1) {
+            for (let slot = 0; slot < EQUIPMENT_SLOTS; slot++) {
+                const result = decodeEquipmentSlot(reader);
+                if (result.type === "item") {
+                    secondaryEquipment[slot] = result.value;
+                }
             }
         }
 
@@ -318,6 +320,7 @@ export function decodeAppearanceBinary(buffer: Uint8Array): DecodedAppearance | 
             gender,
             headIconPk,
             headIconPrayer,
+            npcTransformationId,
             equipment,
             secondaryEquipment,
             colors,

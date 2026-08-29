@@ -49,6 +49,7 @@ export type PlayerAppearance = {
   colors: number[];
   kits: number[];
   equip: number[];
+  npcTransformationId?: number;
   equipQty?: number[];
   headIcons?: { skull: number; prayer: number };
 };
@@ -1675,11 +1676,16 @@ export function encodePlayerAppearance(
   byte(appearance.gender);
   byte(appearance.headIcons?.skull ?? -1);
   byte(appearance.headIcons?.prayer ?? -1);
-  for (let copy = 0; copy < 2; copy++) {
-    for (let slot = 0; slot < 12; slot++) {
-      const value = equipmentSlot(slot);
-      if (value === 0) byte(0);
-      else short(value);
+  if ((appearance.npcTransformationId ?? -1) >= 0) {
+    short(0xffff);
+    short(appearance.npcTransformationId!);
+  } else {
+    for (let copy = 0; copy < 2; copy++) {
+      for (let slot = 0; slot < 12; slot++) {
+        const value = equipmentSlot(slot);
+        if (value === 0) byte(0);
+        else short(value);
+      }
     }
   }
   for (let index = 0; index < 5; index++) byte(appearance.colors[index] ?? 0);

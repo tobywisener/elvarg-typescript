@@ -24,6 +24,7 @@ import { HitMask } from "../game/content/combat/hit/HitMask";
 import { ServerPerf } from "../util/ServerPerf";
 import { ObjectManager } from "../game/entity/impl/object/ObjectManager";
 import { MapRegionReplacementManager } from "../game/collision/MapRegionReplacementManager";
+import { CacheDefinitions } from "../game/cache/CacheDefinitions";
 
 type SessionChannel = {
   binaryTransport?: boolean;
@@ -292,8 +293,20 @@ export class PlayerSession {
       const equipment = player.getEquipment().getItems();
       const skillAnimation = player.getSkillAnimation();
       const weapon = equipment[3]?.getDefinition?.();
+      const npcTransformationId = player.getNpcTransformationId();
+      const transformedNpc = npcTransformationId >= 0 ? CacheDefinitions.getNpc(npcTransformationId) : undefined;
       const animations = skillAnimation > 0
         ? new Array(7).fill(skillAnimation)
+        : transformedNpc
+          ? [
+              transformedNpc.idleSeqId,
+              transformedNpc.turnLeftSeqId,
+              transformedNpc.walkSeqId,
+              transformedNpc.walkBackSeqId,
+              transformedNpc.walkLeftSeqId,
+              transformedNpc.walkRightSeqId,
+              transformedNpc.runSeqId,
+            ]
         : [
             weapon?.getStandAnim?.() ?? 808,
             823,
@@ -323,6 +336,7 @@ export class PlayerSession {
             look[Appearance.FEET],
           ].map((value) => value ?? -1),
           equip: equipment.map((item) => item?.getId?.() ?? -1),
+          npcTransformationId,
           equipQty: equipment.map((item) => item?.getAmount?.() ?? 0),
           headIcons: {
             skull: player.isSkulled() ? player.getSkullType().getIconId() : -1,

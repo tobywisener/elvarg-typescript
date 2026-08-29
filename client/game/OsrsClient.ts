@@ -4269,7 +4269,7 @@ export class OsrsClient {
         if (syncEquipment) {
             this.syncEquipmentInventory(equip, equipQty);
         }
-        return new PlayerAppearance(gender, colors, kits, equip, headIcons);
+        return new PlayerAppearance(gender, colors, kits, equip, headIcons, payload?.npcTransformationId);
     }
 
     /** Sync the equipment inventory from appearance equip array for CS2 INV_GETOBJ(94, slot) */
