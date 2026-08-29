@@ -1493,6 +1493,10 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
                     );
                 }
             }
+            // Dynamic locs are added after SceneBuilder's normal lighting pass.
+            // Light them before extracting render geometry so merge-normal locs
+            // are converted from ModelData to Model.
+            scene.light(textureLoader, -50, -10, -50);
         }
         console.timeEnd(`build scene ${mapX},${mapY}`);
 
