@@ -29,6 +29,8 @@ const {
 const {
   NpcSpawnDefinitionLoader,
 } = require("../../src/main/typescript/elvarg/game/definition/loader/impl/NpcSpawnDefinitionLoader");
+const { NpcDefinition } = require("../../src/main/typescript/elvarg/game/definition/NpcDefinition");
+const { NpcDefinitionLoader } = require("../../src/main/typescript/elvarg/game/definition/loader/impl/NpcDefinitionLoader");
 const {
   ShopDefinitionLoader,
 } = require("../../src/main/typescript/elvarg/game/definition/loader/impl/ShopDefinitionLoader");
@@ -42,6 +44,11 @@ const RUNE_IDS = [554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 56
 const NPC_SPAWN_FILE_CANDIDATES = [
   path.join(process.cwd(), "data", "definitions", "npc_spawns.json"),
 ];
+const NPC_ANIMATION_ROLES = ["attack", "block", "death", "spawn", "other"];
+const NPC_ANIMATION_FILES = Object.freeze({
+  possible: path.resolve(GameConstants.DEFINITIONS_DIRECTORY, "npc-animations.json"),
+  combat: path.resolve(GameConstants.DEFINITIONS_DIRECTORY, "npc-combat-defs.json"),
+});
 const NPC_FACING_BY_NAME = Object.freeze({
   NORTH_WEST: 5,
   NORTH: 6,
@@ -289,8 +296,9 @@ function requireRights(player, predicate) {
   return true;
 }
 
-function queueNpcSpawn(player, id, amount = 1) {
+function queueNpcSpawn(player, id, amount = 1, onSpawn = null, xOffset = 0, yOffset = 0) {
   const origin = player.getLocation().clone();
+  origin.add(xOffset, yOffset);
   const spawnCount = Math.min(Math.max(1, amount), MAX_NPC_COMMAND_SPAWNS);
   let spawned = 0;
 
@@ -313,10 +321,142 @@ function queueNpcSpawn(player, id, amount = 1) {
     if (player.getPrivateArea()) {
       player.getPrivateArea().add(npc);
     }
+    onSpawn?.(npc);
     spawned++;
   }
 
   return spawned;
+}
+
+function getNpcPossibleAnimations(npcId, file = NPC_ANIMATION_FILES.possible) {
+  const source = JSON.parse(fs.readFileSync(file, "utf8"));
+  const possible = source?.[String(npcId)];
+  return Array.isArray(possible)
+    ? possible.filter((id) => Number.isInteger(id) && id >= 0 && id < 65535)
+    : [];
+}
+
+function getNpcIdsWithSamePossibleAnimations(npcId, file = NPC_ANIMATION_FILES.possible) {
+  const source = JSON.parse(fs.readFileSync(file, "utf8"));
+  const possible = source?.[String(npcId)];
+  if (!Array.isArray(possible)) {
+    return [npcId];
+  }
+  return Object.entries(source)
+    .filter(([id, candidate]) =>
+      Number.isInteger(Number(id)) &&
+      Array.isArray(candidate) &&
+      candidate.length === possible.length &&
+      candidate.every((animationId, index) => animationId === possible[index])
+    )
+    .map(([id]) => Number(id));
+}
+
+function writeNpcCombatAnimations(npcIds, animations, file = NPC_ANIMATION_FILES.combat, name = null) {
+  const definitions = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (!definitions || typeof definitions !== "object" || !definitions.npcs || typeof definitions.npcs !== "object") {
+    throw new Error("Invalid npc-combat-defs.json");
+  }
+
+  for (const npcId of Array.isArray(npcIds) ? npcIds : [npcIds]) {
+    const key = String(npcId);
+    const current = definitions.npcs[key] ?? {};
+    const npcName = typeof name === "function" ? name(npcId) : name;
+    definitions.npcs[key] = {
+      ...current,
+      name: typeof npcName === "string" && npcName.trim().length > 0 ? npcName : current.name ?? `NPC ${npcId}`,
+      anims: { ...(current.anims ?? {}), ...animations },
+    };
+  }
+  fs.writeFileSync(file, `${JSON.stringify(definitions, null, 2)}\n`, "utf8");
+}
+
+function normalizeNpcAnimationProperty(value) {
+  const property = String(value ?? "").trim();
+  return /^[A-Za-z][A-Za-z0-9_]*$/.test(property) ? property : null;
+}
+
+function loopNpcAnimation(npc, animationId, key, resetFirst = true) {
+  TaskManager.cancelTasks(key);
+  npc.performAnimation(resetFirst ? Animation.DEFAULT_RESET_ANIMATION : new Animation(animationId));
+  let playNext = resetFirst;
+  TaskManager.submit(new (class extends Task {
+    constructor() {
+      super(resetFirst ? 1 : 5, key);
+    }
+
+    execute() {
+      npc.performAnimation(playNext ? new Animation(animationId) : Animation.DEFAULT_RESET_ANIMATION);
+      playNext = !playNext;
+      this.setDelay(playNext ? 1 : 5);
+    }
+  })());
+}
+
+function startNpcAnimationQuestionnaire(api, player, npcId, possibleAnimations) {
+  let npc = null;
+  queueNpcSpawn(player, npcId, 1, (spawned) => {
+    npc = spawned;
+  }, 1);
+  if (!npc) {
+    player.getPacketSender().sendMessage("Unable to spawn that NPC.");
+    return;
+  }
+
+  const assignments = {};
+  const animationLoopKey = {};
+  let index = 0;
+  const ask = (animationId) => {
+    api.sendMultiChatboxPrompt(
+      player,
+      "Which animation is this?",
+      ...NPC_ANIMATION_ROLES.flatMap((role) => [role, () => {
+        if (role !== "other") {
+          assignments[role] = animationId;
+          next();
+          return;
+        }
+        player.setEnteredSyntaxAction({
+          execute: (rawInput) => {
+            const property = normalizeNpcAnimationProperty(rawInput);
+            if (!property) {
+              player.getPacketSender().sendMessage("Enter a property name using letters, numbers, and underscores.");
+              ask(animationId);
+              return;
+            }
+            assignments[property] = animationId;
+            next();
+          },
+        });
+        player.getPacketSender().sendEnterInputPrompt("Enter animation property name.");
+      }])
+    );
+  };
+  const next = () => {
+    if (index >= possibleAnimations.length) {
+      TaskManager.cancelTasks(animationLoopKey);
+      npc.performAnimation(Animation.DEFAULT_RESET_ANIMATION);
+      const matchingNpcIds = getNpcIdsWithSamePossibleAnimations(npcId);
+      writeNpcCombatAnimations(
+        matchingNpcIds,
+        assignments,
+        NPC_ANIMATION_FILES.combat,
+        (matchingNpcId) => NpcDefinition.forId(matchingNpcId)?.getName?.()
+      );
+      new NpcDefinitionLoader().load();
+      player.getPacketSender().sendMessage(`Saved animation definitions for ${matchingNpcIds.length} NPC${matchingNpcIds.length === 1 ? "" : "s"} to npc-combat-defs.json.`);
+      return;
+    }
+
+    const animationId = possibleAnimations[index++];
+    loopNpcAnimation(npc, animationId, animationLoopKey);
+    player.getPacketSender().sendMessage(
+      `NPC ${npcId}: animation ${animationId} (${index}/${possibleAnimations.length}).`
+    );
+    ask(animationId);
+  };
+
+  next();
 }
 
 function resolveSaveFilePathForUsername(username) {
@@ -625,9 +765,12 @@ module.exports = {
         return true;
       }
       const id = parseIntArg(parts[1]);
-      if (id !== null) {
-        player.setNpcTransformationId(id);
+      if (id === null || id < -1 || id > 65535) {
+        player.getPacketSender().sendMessage("Usage: ::pnpc npc-id (-1 to reset)");
+        return true;
       }
+      player.performAnimation(Animation.DEFAULT_RESET_ANIMATION);
+      player.setNpcTransformationId(id);
       return true;
     });
 
@@ -645,6 +788,38 @@ module.exports = {
       player.getPacketSender().sendMessage(
         `Queued ${spawned} NPC${spawned === 1 ? "" : "s"} (id=${id}).`
       );
+      return true;
+    });
+
+    api.registerCommand("npcanim", ({ player, parts }) => {
+      if (!requireRights(player, ownerOrDev)) {
+        return true;
+      }
+      const id = parseIntArg(parts[1]);
+      if (id === null || id < 0) {
+        player.getPacketSender().sendMessage("Usage: ::npcanim npc-id");
+        return true;
+      }
+
+      let possibleAnimations;
+      try {
+        possibleAnimations = getNpcPossibleAnimations(id);
+      } catch (error) {
+        console.error(error);
+        player.getPacketSender().sendMessage("Unable to read npc-animations.json.");
+        return true;
+      }
+      if (possibleAnimations.length === 0) {
+        player.getPacketSender().sendMessage(`No possible animations found for NPC ${id}.`);
+        return true;
+      }
+
+      try {
+        startNpcAnimationQuestionnaire(api, player, id, possibleAnimations);
+      } catch (error) {
+        console.error(error);
+        player.getPacketSender().sendMessage("Unable to start NPC animation questionnaire.");
+      }
       return true;
     });
 
@@ -1477,5 +1652,11 @@ module.exports = {
       }
       return true;
     });
+  },
+  _test: {
+    getNpcPossibleAnimations,
+    getNpcIdsWithSamePossibleAnimations,
+    normalizeNpcAnimationProperty,
+    writeNpcCombatAnimations,
   },
 };

@@ -115,4 +115,23 @@ assert.deepStrictEqual(skulls[skulls.length - 1], {
 });
 assert.strictEqual(sent.removals, 4, "every answer must close its option chatbox");
 
+const originalNow = Date.now;
+let now = originalNow();
+Date.now = () => now;
+try {
+  let selected = 0;
+  MultiChatboxPrompt.showPrompt("test", player, "Animation review", ["Continue", () => selected++, "Cancel", () => {}]);
+  now += 9 * 60_000;
+  assert.strictEqual(choose(1), true, "an animation-review choice must remain active for ten minutes");
+  assert.strictEqual(selected, 1);
+
+  MultiChatboxPrompt.showPrompt("test", player, "Animation review", ["Continue", () => {}, "Cancel", () => {}]);
+  const removalsBeforeExpiry = sent.removals;
+  now += 10 * 60_000 + 1;
+  assert.strictEqual(choose(1), false, "expired prompts must not execute their callback");
+  assert.strictEqual(sent.removals, removalsBeforeExpiry + 1, "an expired prompt must close instead of leaving Please wait");
+} finally {
+  Date.now = originalNow;
+}
+
 console.log("player command skull confirmation smoke passed");

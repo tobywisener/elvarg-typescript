@@ -21,7 +21,7 @@ export class MultiChatboxPrompt {
   private static pendingPrompts = new WeakMap<any, PendingMultiChatboxPrompt>();
   private static readonly INTERFACE_ID = 219;
   private static readonly OPTIONS_WIDGET_ID = (219 << 16) | 1;
-  private static readonly PROMPT_TTL_MS = 30_000;
+  private static readonly PROMPT_TTL_MS = 10 * 60_000;
 
   public static showPrompt(
     pluginName: string,
@@ -103,6 +103,7 @@ export class MultiChatboxPrompt {
     }
     if (!Number.isInteger(pending.expiresAt) || pending.expiresAt < Date.now()) {
       MultiChatboxPrompt.pendingPrompts.delete(event.player);
+      event.player?.getPacketSender?.()?.sendInterfaceRemoval?.();
       return false;
     }
     if (
@@ -125,6 +126,7 @@ export class MultiChatboxPrompt {
     }
     if (!Number.isInteger(pending.expiresAt) || pending.expiresAt < Date.now()) {
       MultiChatboxPrompt.pendingPrompts.delete(player);
+      player?.getPacketSender?.()?.sendInterfaceRemoval?.();
       return false;
     }
     if (

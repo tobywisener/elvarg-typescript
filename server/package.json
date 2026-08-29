@@ -104,6 +104,7 @@
     "test:weapon-profiles": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/weapon-profiles-smoke.ts",
     "test:npc-spawns": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/npc-spawns-smoke.ts",
     "test:cache-definitions": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/cache-definitions-smoke.ts",
+    "test:npc-animations-command": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/npc-animations-command-smoke.ts",
     "test:lunar-spellbook": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/lunar-spellbook-smoke.ts",
     "test:smithing-bar-type": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/smithing-bar-type-smoke.ts",
     "test:smelting-quantity": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/smelting-quantity-smoke.ts",
