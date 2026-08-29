@@ -6,6 +6,7 @@ import { GameConstants } from "../game/GameConstants";
 import { MapRegionReplacementManager } from "../game/collision/MapRegionReplacementManager";
 import { ServerDataRegistry } from "../game/data/ServerDataRegistry";
 import { DefinitionLoader } from "../game/definition/loader/DefinitionLoader";
+import { ShopManager } from "../game/model/container/shop/ShopManager";
 import { WeaponProfiles } from "../game/content/combat/WeaponProfile";
 import { NpcInteractionDefinitionLoader } from "../game/definition/loader/impl/NpcInteractionDefinitionLoader";
 import { NpcInteractionManager } from "../game/entity/impl/npc/NpcInteractionManager";
@@ -2748,6 +2749,9 @@ export class PluginManager {
           );
           throw error;
         }
+      },
+      registerShopCurrency: (name, handler) => {
+        ShopManager.registerCurrency(name, handler);
       },
       setPlayerPersistence: (persistence) => {
         if (

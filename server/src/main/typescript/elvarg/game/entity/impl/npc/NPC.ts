@@ -18,6 +18,7 @@ import { NPCDeathTask } from "../../../task/impl/NPCDeathTask"
 import { Wilderness } from "../../../content/wilderness/Wilderness";
 import { MovementQueue } from "../../../model/movement/MovementQueue";
 import { GameConstants } from "../../../GameConstants";
+import { Animation } from "../../../model/Animation";
 
 export class NPC extends Mobile {
     private static sameLocation(a: Location | null | undefined, b: Location | null | undefined): boolean {
@@ -157,7 +158,10 @@ export class NPC extends Mobile {
     }
 
     public onAdd() {
-
+        const spawnAnim = this.getCurrentDefinition().getSpawnAnim();
+        if (Number.isInteger(spawnAnim) && spawnAnim >= 0) {
+            this.performAnimation(new Animation(spawnAnim));
+        }
     }
 
     public onRemove() {

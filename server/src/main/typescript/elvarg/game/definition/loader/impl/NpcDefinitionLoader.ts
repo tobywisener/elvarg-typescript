@@ -37,12 +37,12 @@ type CombatStats = {
 };
 
 type CombatAnimation = {
-    anims?: { attack?: number; block?: number; death?: number };
+    anims?: { spawn?: number | null; attack?: number; block?: number; death?: number };
     sounds?: { death?: number };
     projectile?: number;
 };
 
-type CombatAnimationRole = keyof NonNullable<CombatAnimation["anims"]>;
+type CombatAnimationRole = "attack" | "block" | "death";
 
 const ANIMATION_FALLBACKS: Record<number, CombatAnimation> = {
     7: { anims: { attack: 6184, block: 6188, death: 6182 } },
@@ -241,6 +241,7 @@ export class NpcDefinitionLoader extends DefinitionLoader {
                     attackAnim: animation.anims?.attack ?? definition.getAttackAnim(),
                     defenceAnim: animation.anims?.block ?? definition.getDefenceAnim(),
                     deathAnim: animation.anims?.death ?? definition.getDeathAnim(),
+                    spawnAnim: animation.anims?.spawn ?? definition.getSpawnAnim(),
                     deathSound: animation.sounds?.death ?? definition.getDeathSound(),
                 });
             }

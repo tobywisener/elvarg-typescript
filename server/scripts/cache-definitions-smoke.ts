@@ -8,7 +8,9 @@ import { ObjectDefinition } from "../src/main/typescript/elvarg/game/definition/
 import { RegionManager } from "../src/main/typescript/elvarg/game/collision/RegionManager";
 import { MapRegionReplacementManager } from "../src/main/typescript/elvarg/game/collision/MapRegionReplacementManager";
 import { NpcDefinitionLoader } from "../src/main/typescript/elvarg/game/definition/loader/impl/NpcDefinitionLoader";
+import { NPC } from "../src/main/typescript/elvarg/game/entity/impl/npc/NPC";
 import { EquipmentType } from "../src/main/typescript/elvarg/game/model/EquipmentType";
+import { Location } from "../src/main/typescript/elvarg/game/model/Location";
 
 async function main() {
     await CachePipeline.initialize();
@@ -42,6 +44,11 @@ async function main() {
     assert.equal(NpcDefinition.forId(5243).getAttackAnim(), 5327);
     assert.equal(NpcDefinition.forId(5243).getDefenceAnim(), 5328);
     assert.equal(NpcDefinition.forId(5243).getDeathAnim(), 5329);
+    assert.equal(NpcDefinition.forId(1705).getSpawnAnim(), 6871);
+    assert.equal(NpcDefinition.forId(1704).getSpawnAnim(), null);
+    const spawnedRavager = new NPC(1705, new Location(0, 0, 0));
+    spawnedRavager.onAdd();
+    assert.equal(spawnedRavager.getAnimation()?.getId(), 6871);
     assert(NpcDefinition.forId(3129).isDemon(), "expected K'ril Tsutsaroth to retain the monster-dump demon attribute");
     assert(NpcDefinition.forId(239).getMaxHit() > 1);
     require("../plugins/items/ItemDefinitionLoader.plugin.js").register({ log() {} });

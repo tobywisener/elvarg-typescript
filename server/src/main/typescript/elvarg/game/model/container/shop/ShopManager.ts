@@ -20,6 +20,13 @@ export interface ShopItemContainerAction {
     amount: number;
 }
 
+export interface ShopCurrencyHandler {
+    amount(player: any): number;
+    add(player: any, amount: number): void;
+    remove(player: any, amount: number): void;
+    name: string;
+}
+
 interface RuntimeShop {
     definition: ShopDefinition;
     originalAmounts: Map<number, number>;
@@ -64,6 +71,14 @@ export class ShopManager {
     private static readonly activeShopByPlayer = new WeakMap<object, number>();
     private static readonly viewersByShopId = new Map<number, Set<any>>();
     private static restockTaskRunning = false;
+    private static readonly currencyHandlers = new Map<string, ShopCurrencyHandler>();
+
+    public static registerCurrency(name: string, handler: ShopCurrencyHandler): void {
+        if (!name || !handler || typeof handler.amount !== "function" || typeof handler.add !== "function" || typeof handler.remove !== "function") {
+            throw new Error(`Invalid shop currency registration: ${name}`);
+        }
+        this.currencyHandlers.set(name, handler);
+    }
 
     public static initialize(): void {
         this.reload();
@@ -681,6 +696,8 @@ export class ShopManager {
     }
 
     private static currencyAmount(player: any, currency: ShopCurrency): number {
+        const handler = this.currencyHandlers.get(currency);
+        if (handler) return Math.max(0, handler.amount(player) | 0);
         if (currency === "POINTS") {
             return Number(player.getPoints?.() ?? 0);
         }
@@ -697,6 +714,11 @@ export class ShopManager {
     ): void {
         const quantity = this.normalizeAmount(amount);
         if (quantity <= 0) {
+            return;
+        }
+        const handler = this.currencyHandlers.get(currency);
+        if (handler) {
+            handler.add(player, quantity);
             return;
         }
         if (currency === "POINTS") {
@@ -716,6 +738,11 @@ export class ShopManager {
     ): void {
         const quantity = this.normalizeAmount(amount);
         if (quantity <= 0) {
+            return;
+        }
+        const handler = this.currencyHandlers.get(currency);
+        if (handler) {
+            handler.remove(player, quantity);
             return;
         }
         if (currency === "POINTS") {
@@ -739,6 +766,8 @@ export class ShopManager {
     }
 
     private static currencyName(currency: ShopCurrency): string {
+        const handler = this.currencyHandlers.get(currency);
+        if (handler) return handler.name;
         if (currency === "COINS") {
             return "Coins";
         }

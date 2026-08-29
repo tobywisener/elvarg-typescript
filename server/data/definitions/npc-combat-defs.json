@@ -361,6 +361,46 @@
         "death": 512
       }
     },
+    "1689": {
+      "anims": {
+        "death": 3888,
+        "attack": 3891,
+        "spawn": 6869
+      }
+    },
+    "1696": {
+      "name": "Shifter",
+      "anims": {
+        "spawn": 3904,
+        "attack": 3901,
+        "block": 3902,
+        "death": 3903
+      }
+    },
+    "1705": {
+      "name": "Ravager",
+      "anims": {
+        "spawn": 6871,
+        "attack": 3915,
+        "block": 3916,
+        "death": 3917
+      },
+      "sounds": {
+        "death": 512
+      }
+    },
+    "1706": {
+      "name": "Ravager",
+      "anims": {
+        "spawn": 6871,
+        "attack": 3915,
+        "block": 3916,
+        "death": 3917
+      },
+      "sounds": {
+        "death": 512
+      }
+    },
     "1838": {
       "name": "Duck",
       "anims": {
@@ -2407,6 +2447,11 @@
         "death": 512
       }
     },
+    "7308": {
+      "name": "Ancient Wizard",
+      "projectile": 27,
+      "$comment": "Runite bolt - Ammunition.RUNITE_BOLT projectile id in RangedData; this npc wields a crossbow"
+    },
     "7919": {
       "name": "Man",
       "anims": {
@@ -2791,11 +2836,6 @@
       "sounds": {
         "death": 512
       }
-    },
-    "7308": {
-      "name": "Ancient Wizard",
-      "projectile": 27,
-      "$comment": "Runite bolt - Ammunition.RUNITE_BOLT projectile id in RangedData; this npc wields a crossbow"
     }
   },
   "refs": {

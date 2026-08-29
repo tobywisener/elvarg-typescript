@@ -7,6 +7,7 @@ const { Graphic } = require("../../src/main/typescript/elvarg/game/model/Graphic
 const { Projectile } = require("../../src/main/typescript/elvarg/game/model/Projectile");
 const { GameObject } = require("../../src/main/typescript/elvarg/game/entity/impl/object/GameObject");
 const { MapObjects } = require("../../src/main/typescript/elvarg/game/entity/impl/object/MapObjects");
+const { OperationType } = require("../../src/main/typescript/elvarg/game/entity/impl/object/ObjectManager");
 const { NPC } = require("../../src/main/typescript/elvarg/game/entity/impl/npc/NPC");
 const { CombatMethod } = require("../../src/main/typescript/elvarg/game/content/combat/method/CombatMethod");
 const { CombatType } = require("../../src/main/typescript/elvarg/game/content/combat/CombatType");
@@ -24,6 +25,7 @@ const { createBotPlayer } = require("../bots/behaviours/spawn/BotPlayerFactory")
 const { buildRoamingPvpMetadata } = require("../bots/behaviours/pvp/PvpAssignment");
 const { applyGeneratedPvpLoadout } = require("../bots/behaviours/policies/PvpLoadoutPolicy");
 const { ATTR_SKIP_PERSISTENCE } = require("../bots/runtime/BotPersistenceConstants");
+const { ShopManager } = require("../../src/main/typescript/elvarg/game/model/container/shop/ShopManager");
 
 const OVERLAY_HUD_UID = (161 << 16) | 8;
 const LANDER_OVERLAY = 407;
@@ -43,10 +45,16 @@ const FIRST_SHIELD_TICK = 25;
 const SHIELD_INTERVAL_TICKS = 50;
 const PEST_SPAWN_INTERVAL_TICKS = 10;
 const MAX_PESTS = 100;
-const MIN_REWARD_ACTIVITY = 50;
+const MIN_REWARD_ACTIVITY = 1;
 const MAX_ACTIVITY = 100;
 const MAX_COMMENDATIONS = 4000;
 const ATTR_WAITING_BOAT = "pest-control:waiting-boat";
+const PEST_CONTROL_POINTS = "PEST_CONTROL_POINTS";
+const VOID_KNIGHT_SHOP = 11;
+const VOID_KNIGHT_IDS = [
+  NpcIdentifiers.VOID_KNIGHT, NpcIdentifiers.VOID_KNIGHT_2, NpcIdentifiers.VOID_KNIGHT_3, NpcIdentifiers.VOID_KNIGHT_4,
+  NpcIdentifiers.VOID_KNIGHT_5, NpcIdentifiers.VOID_KNIGHT_6, NpcIdentifiers.VOID_KNIGHT_7, NpcIdentifiers.VOID_KNIGHT_8,
+];
 const BOT_DEFEND_OFFSETS = [
   [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1],
   [-2, 0], [-1, 0], [1, 0], [2, 0],
@@ -185,7 +193,16 @@ const PEST_IDS = {
   ],
 };
 
-const PEST_TYPES = Object.keys(PEST_IDS);
+// OSRS waves are weighted toward the common melee pests; special pests remain
+// present without making every wave a uniform lottery.
+const SPAWN_WEIGHTS = [
+  ["shifter", 3], ["splatter", 3], ["ravager", 2], ["spinner", 2],
+  ["defiler", 1], ["torcher", 1], ["brawler", 1],
+];
+const PEST_COMBAT_LEVELS = {
+  splatter: [22, 33, 44], shifter: [36, 57, 76], ravager: [36, 53, 71],
+  spinner: [37, 55, 74], torcher: [33, 49, 67], defiler: [33, 50, 66], brawler: [51, 76, 101],
+};
 const SPINNER_IDS = new Set(PEST_IDS.spinner.flat());
 const TORCHER_IDS = PEST_IDS.torcher.flat();
 const DEFILER_IDS = PEST_IDS.defiler.flat();
@@ -199,6 +216,44 @@ function formatTicks(ticks) {
 
 function randomOf(values) {
   return values[Math.floor(Math.random() * values.length)];
+}
+
+function randomPestType() {
+  const total = SPAWN_WEIGHTS.reduce((sum, [, weight]) => sum + weight, 0);
+  let roll = Math.floor(Math.random() * total);
+  for (const [type, weight] of SPAWN_WEIGHTS) {
+    roll -= weight;
+    if (roll < 0) return type;
+  }
+  return "shifter";
+}
+
+function applyPortalCombatStats(npc, key) {
+  const stats = npc.getDefinition().getStats();
+  stats[2] = 120;
+  for (let index = 10; index <= 14; index++) stats[index] = 100;
+  const weakBonus = { purple: 14, blue: 13, yellow: 11, red: 12 }[key];
+  if (weakBonus !== undefined) stats[weakBonus] = 0;
+}
+
+function applyPestStats(npc, type, tier) {
+  const definition = npc.getDefinition();
+  const level = PEST_COMBAT_LEVELS[type]?.[tier] ?? 1;
+  definition.combatLevel = level;
+  const stats = definition.getStats();
+  stats[0] = level;
+  stats[1] = level;
+  stats[2] = level;
+  definition.setMaxHitpoints(Math.max(definition.getHitpoints(), level * 2));
+  npc.setHitpoints(definition.getHitpoints());
+}
+
+function routePest(npc, x, y) {
+  const movement = npc.getMovementQueue();
+  if (movement.lastDestX === x && movement.lastDestY === y && (movement.size() > 0 || movement.isMovings())) {
+    return;
+  }
+  PathFinder.calculateWalkRoute(npc, x, y);
 }
 
 function choosePortalOrder(random = Math.random) {
@@ -346,6 +401,7 @@ class PestControlMatchArea extends PrivateArea {
 
   getName() { return `Pest Control (${this.match.boat.name})`; }
   isMulti() { return true; }
+  allowSummonPet() { return false; }
 
   postEnter(mobile) {
     super.postEnter(mobile);
@@ -406,6 +462,7 @@ class PestControlMatch {
     PORTALS.forEach((data, index) => {
       const npc = this.spawnNpc(boat.shieldedIds[index], new Location(data.x, data.y, 0));
       npc.setHitpoints(boat.portalHp);
+      applyPortalCombatStats(npc, data.key);
       npc.__pcKind = "portal";
       npc.setFlag("combat:no-retaliate");
       const state = { ...data, index, npc, shielded: true, dead: false, hp: boat.portalHp };
@@ -415,7 +472,7 @@ class PestControlMatch {
 
     let defenderIndex = 0;
     for (const player of players) {
-      this.players.set(player, { activity: 0, damage: 0, sent: new Map() });
+      this.players.set(player, { activity: 100, damage: 0, sent: new Map() });
       if (player.isPlayerBot?.() === true) {
         const [offsetX, offsetY] = BOT_DEFEND_OFFSETS[defenderIndex++ % BOT_DEFEND_OFFSETS.length];
         const defendAt = KNIGHT_LOCATION.clone().add(offsetX, offsetY);
@@ -537,6 +594,24 @@ class PestControlMatch {
     resetStructures(this.structures, (state) => this.replaceStructure(state));
   }
 
+  cleanupStructures() {
+    const objects = [...this.structures.values()].map((state) => state.object);
+    for (const object of [...World.getObjects()]) {
+      if (object.getPrivateArea?.() === this.area && !objects.includes(object)) objects.push(object);
+    }
+    for (const state of this.structures.values()) {
+      ObjectManager.deregister(state.object, false);
+      this.area.detach(state.object);
+    }
+    // Replacements are registered globally but are not re-added to area.entities;
+    // remove any leaked match-owned objects as well (notably offset open gates).
+    for (const object of [...World.getObjects()]) {
+      if (object.getPrivateArea?.() === this.area) ObjectManager.deregister(object, false);
+    }
+    for (const object of objects) ObjectManager.perform(object, OperationType.DESPAWN);
+    this.structures.clear();
+  }
+
   onPlayerEnter(player) {
     const state = this.players.get(player);
     if (!state || this.ended) return;
@@ -588,6 +663,7 @@ class PestControlMatch {
     if (!portal || portal.dead || !portal.shielded) return;
     portal.shielded = false;
     portal.npc.setNpcTransformationId(this.boat.unshieldedIds[portal.index]);
+    applyPortalCombatStats(portal.npc, portal.key);
     for (const player of this.players.keys()) {
       player.getPacketSender().sendMessage(
         `The <col=${portal.colour}>${portal.name}</col> portal shield has dropped!`
@@ -601,13 +677,20 @@ class PestControlMatch {
     if (live.length === 0 || pests.length >= MAX_PESTS) return;
     for (let i = 0; i < live.length && pests.length + i < MAX_PESTS; i++) {
       const portal = live[i];
-      const type = randomOf(PEST_TYPES);
+      const type = randomPestType();
       const ids = PEST_IDS[type][this.boat.pestTier];
       const npc = this.spawnNpc(randomOf(ids), new Location(portal.spawnX, portal.spawnY, 0));
-      npc.getMovementCoordinator().setRadius(40);
       npc.__pcType = type;
       npc.__pcPortal = portal.key;
       npc.__pcNextAction = this.elapsedTicks;
+      // Pests move as a horde: other mobiles must not make their static route stall.
+      npc.canWalkThroughNPCs = () => true;
+      // These pests have a fixed objective. Radius zero disables the generic
+      // random-wander coordinator without disabling their explicit routes.
+      npc.getMovementCoordinator().setRadius(
+        type === "ravager" || type === "splatter" || type === "spinner" ? 0 : 64
+      );
+      applyPestStats(npc, type, this.boat.pestTier);
     }
   }
 
@@ -617,9 +700,7 @@ class PestControlMatch {
     if (type === "spinner") return this.processSpinner(npc);
     if (type === "splatter" || type === "ravager") return this.processStructurePest(npc, type);
 
-    const target = type === "defiler" || type === "torcher" || type === "shifter"
-      ? this.knight
-      : this.closestPlayer(npc);
+    const target = this.knight;
     if (!target || target.getHitpoints() <= 0) return;
 
     if (type === "shifter" && this.elapsedTicks >= (npc.__pcNextTeleport || 0)
@@ -638,7 +719,7 @@ class PestControlMatch {
     if (!portal || portal.dead) return;
     const distance = npc.getLocation().getDistance(portal.npc.getLocation());
     if (distance > 3) {
-      if (this.elapsedTicks % 4 === 0) PathFinder.calculateWalkRoute(npc, portal.x, portal.y);
+      routePest(npc, portal.x, portal.y);
       return;
     }
     if (this.elapsedTicks < npc.__pcNextAction || portal.npc.getHitpoints() >= this.boat.portalHp) return;
@@ -651,14 +732,16 @@ class PestControlMatch {
 
   processStructurePest(npc, type) {
     npc.getCombat().reset();
-    const structure = this.closestStandingStructure(npc);
+    let structure = npc.__pcStructure;
+    if (!structure || structure.damage >= structure.maxDamage) {
+      structure = this.closestStandingStructure(npc);
+      npc.__pcStructure = structure;
+    }
     if (!structure) return;
     const distance = npc.getLocation().getDistance(structure.object.getLocation());
     if (distance > 1) {
-      if (this.elapsedTicks % 4 === 0) {
-        const at = structure.object.getLocation();
-        PathFinder.calculateWalkRoute(npc, at.getX(), at.getY());
-      }
+      const at = structure.object.getLocation();
+      routePest(npc, at.getX(), at.getY());
       return;
     }
     if (type === "splatter") {
@@ -668,6 +751,8 @@ class PestControlMatch {
     }
     if (this.elapsedTicks >= npc.__pcNextAction) {
       npc.__pcNextAction = this.elapsedTicks + 6;
+      const animation = npc.getAttackAnim?.();
+      if (animation >= 0) npc.performAnimation(new Animation(animation));
       structure.damage = Math.min(structure.maxDamage, structure.damage + 1);
       this.replaceStructure(structure);
     }
@@ -782,7 +867,7 @@ class PestControlMatch {
       && entry.object.getLocation().equals(object.getLocation()));
     if (!state) return false;
 
-    if (state.kind === "gate" && clickType === 1) {
+    if (state.kind === "gate" && clickType === 1 && state.damage < state.maxDamage) {
       const open = !state.open;
       for (const part of this.structures.values()) {
         if (part.kind !== "gate" || part.group !== state.group) continue;
@@ -859,6 +944,7 @@ class PestControlMatch {
       this.players.delete(player);
       releaseMatchPlayer(player, this.area);
     }
+    this.cleanupStructures();
     this.area.destroy();
     this.cleanupNpcs();
     this.onFinished(this);
@@ -876,6 +962,7 @@ class PestControlWaitingArea extends Area {
   }
 
   getName() { return `${this.state.boat.name} Pest Control lander`; }
+  allowSummonPet() { return false; }
 
   postEnter(mobile) {
     if (!mobile.isPlayer?.()) return;
@@ -925,6 +1012,32 @@ class PestControlOutpostArea extends Area {
 }
 
 function createPestControl(api) {
+  api.registerShopCurrency(PEST_CONTROL_POINTS, {
+    name: "Void Knight commendation points",
+    amount: (player) => Number.isFinite(player?.pcPoints) ? player.pcPoints : 0,
+    add: (player, amount) => { player.pcPoints = Math.max(0, (player.pcPoints || 0) + amount); },
+    remove: (player, amount) => { player.pcPoints = Math.max(0, (player.pcPoints || 0) - amount); },
+  });
+  api.registerDefinitionSource("shops", {
+    name: "pest-control",
+    load: () => [{
+      id: VOID_KNIGHT_SHOP,
+      name: "Void Knight commendation shop",
+      currency: PEST_CONTROL_POINTS,
+      originalStock: [
+        [ItemIdentifiers.VOID_KNIGHT_MACE, 250],
+        [ItemIdentifiers.VOID_KNIGHT_TOP, 250],
+        [ItemIdentifiers.VOID_KNIGHT_ROBE, 250],
+        [ItemIdentifiers.VOID_KNIGHT_GLOVES, 150],
+        [ItemIdentifiers.VOID_MELEE_HELM, 200],
+        [ItemIdentifiers.VOID_MAGE_HELM, 200],
+        [ItemIdentifiers.VOID_RANGER_HELM, 200],
+        [ItemIdentifiers.VOID_SEAL_8_, 10],
+        [ItemIdentifiers.ELITE_VOID_TOP, 200],
+        [ItemIdentifiers.ELITE_VOID_ROBE, 200],
+      ].map(([id, price]) => ({ id, amount: 1000, price })),
+    }],
+  });
   const matches = new Set();
   const stateByBoat = new Map();
   let botSerial = 0;
@@ -1023,6 +1136,13 @@ function createPestControl(api) {
     }
     const match = event.player.getAttribute?.("pest-control:match");
     if (match instanceof PestControlMatch && match.handleObject(event.player, event.object, event.clickType)) event.handled = true;
+  });
+
+  api.onNpcFirstClick(VOID_KNIGHT_IDS, (event) => {
+    if (OUTPOST.inside(event.player.getLocation())) {
+      ShopManager.open(event.player, VOID_KNIGHT_SHOP);
+      event.handled = true;
+    }
   });
 
   api.onNpcInteraction((event) => {
