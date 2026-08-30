@@ -6,7 +6,7 @@ import { FightStyle } from "../FightStyle";
 import { Mobile } from "../../../entity/impl/Mobile";
 import type { Player } from "../../../entity/impl/player/Player";
 import type { NPC } from "../../../entity/impl/npc/NPC";
-import { applyMeleeHitModifiers } from "../EquipmentEffects";
+import { applyMagicHitModifiers, applyMeleeHitModifiers } from "../EquipmentEffects";
 import { CombatEquipment } from "../CombatEquipment";
 
 const getPlayerCombatSpecial = (player: Player): any | null => {
@@ -116,6 +116,9 @@ export class DamageFormulas {
             maxHit = 1;
         }
 
+        const { CombatSpells } = require("../magic/CombatSpells") as typeof import("../magic/CombatSpells");
+        maxHit = CombatSpells.applyChargeMaxHit(c, maxHit);
+
         if (c.isPlayer()) {
             const player = c.getAsPlayer();
             const magicStrength = player.getBonusManager().getOtherBonus()[BonusManager.MAGIC_STRENGTH];
@@ -127,7 +130,7 @@ export class DamageFormulas {
             maxHit *= demonbaneMultiplier;
         }
 
-        return Math.floor(maxHit);
+        return Math.floor(applyMagicHitModifiers(c, maxHit));
     }
 
     private static effectiveRangedStrength(player: Player): number {

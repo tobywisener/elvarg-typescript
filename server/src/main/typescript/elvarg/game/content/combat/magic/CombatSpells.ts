@@ -18,6 +18,7 @@ import { PrayerHandler } from "../../PrayerHandler";
 import { CombatEffectSpell } from "./CombatEffectSpell";
 import { CombatNormalSpell, CombatNormalSpellOptions } from "./CombatNormalSpell";
 import { CombatSpell } from "./CombatSpell";
+import { Spell } from "./Spell";
 
 /**
  * Charge-based combat spell for the powered staves (tridents). OSRS charges
@@ -67,6 +68,25 @@ class TridentSpell extends CombatNormalSpell {
             player.getEquipment().refreshItems();
             player.getUpdateFlag().flag(Flag.APPEARANCE);
         }
+        return true;
+    }
+}
+
+class ChargeSpell extends Spell {
+    spellId(): number { return 0; }
+    levelRequired(): number { return 80; }
+    baseExperience(): number { return 180; }
+    itemsRequired(): Item[] { return [new Item(556, 3), new Item(554, 3), new Item(565, 3)]; }
+    equipmentRequired(): Item[] { return []; }
+    startCast(): void { }
+
+    cast(player: Player): boolean {
+        if (!this.canCast(player, false) || !this.canCast(player, true)) {
+            return true;
+        }
+        player.getSkillManager().addExperiences(Skill.MAGIC, this.baseExperience());
+        player.setAttribute(CombatSpells.CHARGE_UNTIL, Date.now() + 420_000);
+        player.getPacketSender().sendMessage("You feel charged with magical power.");
         return true;
     }
 }
@@ -204,6 +224,26 @@ export class CombatAncientSpellExtend extends CombatSpell {
 
 
 export class CombatSpells {
+    public static readonly CHARGE_UNTIL = "charge:until";
+    private static readonly CHARGE = new ChargeSpell();
+    private static readonly GOD_SPELL_CAPES = new Map<number, Set<number>>([
+        [1190, new Set([ItemIdentifiers.SARADOMIN_CAPE, ItemIdentifiers.SARADOMIN_CAPE_2, ItemIdentifiers.IMBUED_SARADOMIN_CAPE, ItemIdentifiers.IMBUED_SARADOMIN_CAPE_2, ItemIdentifiers.IMBUED_SARADOMIN_CAPE_3, ItemIdentifiers.IMBUED_SARADOMIN_CAPE_4])],
+        [1191, new Set([ItemIdentifiers.GUTHIX_CAPE, ItemIdentifiers.GUTHIX_CAPE_2, ItemIdentifiers.IMBUED_GUTHIX_CAPE, ItemIdentifiers.IMBUED_GUTHIX_CAPE_2, ItemIdentifiers.IMBUED_GUTHIX_CAPE_3, ItemIdentifiers.IMBUED_GUTHIX_CAPE_4])],
+        [1192, new Set([ItemIdentifiers.ZAMORAK_CAPE, ItemIdentifiers.ZAMORAK_CAPE_2, ItemIdentifiers.IMBUED_ZAMORAK_CAPE, ItemIdentifiers.IMBUED_ZAMORAK_CAPE_2, ItemIdentifiers.IMBUED_ZAMORAK_CAPE_3, ItemIdentifiers.IMBUED_ZAMORAK_CAPE_4])],
+    ]);
+
+    public static handleSelf(player: Player, name: string | undefined): boolean {
+        return name?.trim().toLowerCase() === "charge" && this.CHARGE.cast(player);
+    }
+
+    public static applyChargeMaxHit(caster: Mobile, maxHit: number): number {
+        if (!caster.isPlayer() || Number(caster.getAttribute(this.CHARGE_UNTIL) ?? 0) <= Date.now()) {
+            return maxHit;
+        }
+        const player = caster.getAsPlayer();
+        const capes = this.GOD_SPELL_CAPES.get(player.getCombat().getSelectedSpell()?.spellId());
+        return capes?.has(player.getEquipment().get(Equipment.CAPE_SLOT).getId()) ? 30 : maxHit;
+    }
     public static WIND_STRIKE = new CombatNormalSpell({
         castAnimation() {
             return new Animation(711);

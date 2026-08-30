@@ -425,6 +425,11 @@ class ClientConnection {
               this.resolveSpellName(actionPacket.widgetId, actionPacket.groupId, actionPacket.childId, actionPacket.itemId),
             )) {
               // Lunar self-casts and teleports are identified by their cache spell name.
+            } else if (CombatSpells.handleSelf(
+              this.player,
+              this.resolveSpellName(actionPacket.widgetId, actionPacket.groupId, actionPacket.childId, actionPacket.itemId),
+            )) {
+              // Charge is a self-cast combat spell.
             } else if (EffectSpells.handleSpell(
               this.player,
               EffectSpells.forSpellName(this.resolveSpellName(
