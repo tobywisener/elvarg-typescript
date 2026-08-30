@@ -6,6 +6,10 @@ function applyPvpPreset(player, state, options = {}) {
   if (!player || player.isPlayerBot?.() !== true) {
     return false;
   }
+  const combat = player.getCombat?.();
+  if (combat?.getTarget?.() || combat?.getAttacker?.() || player.getCombatFollowing?.()) {
+    return false;
+  }
   const applyRandomGlobalPreset = options.applyRandomGlobalPreset;
   if (typeof applyRandomGlobalPreset !== "function") {
     return false;

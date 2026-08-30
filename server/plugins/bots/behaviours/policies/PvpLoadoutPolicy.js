@@ -3263,6 +3263,10 @@ function applyGeneratedPvpLoadout(player, state, options = {}) {
   if (!player || player.isPlayerBot?.() !== true) {
     return false;
   }
+  const combat = player.getCombat?.();
+  if (combat?.getTarget?.() || combat?.getAttacker?.() || player.getCombatFollowing?.()) {
+    return false;
+  }
   const generated = buildGeneratedPreset(player, state);
   if (!generated?.preset) {
     options.api?.log?.("bot_pvp_loadout_failed", {

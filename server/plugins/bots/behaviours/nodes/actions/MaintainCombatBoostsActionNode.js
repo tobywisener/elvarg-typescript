@@ -70,7 +70,7 @@ class MaintainCombatBoostsActionNode {
     const resolved = resolveBotNodeContext(context, this.botStatesByName, {
       requiredMode: "pvp",
       requireNotBusy: false,
-      requireNotInCombat: false,
+      requireNotInCombat: true,
       requireNoTraversalTransition: false,
     });
     if (!resolved) {
