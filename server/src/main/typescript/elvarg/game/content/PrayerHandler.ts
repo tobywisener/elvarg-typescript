@@ -6,7 +6,6 @@ import { Player } from "../entity/impl/player/Player";
 import { Skill } from "../model/Skill";
 import { SkullType } from "../model/SkullType";
 import { BonusManager } from "../model/equipment/BonusManager";
-import { PlayerRights } from "../model/rights/PlayerRights";
 import { Sound } from "../Sound";
 import { Sounds } from "../Sounds";
 import { Misc } from "../../util/Misc";
@@ -273,24 +272,6 @@ export class PrayerHandler {
                 }
                 return false;
             }
-        }
-
-        // Prayer locks
-        let locked = false;
-
-        if (prayer == PrayerData.PRESERVE && !player.isPreserveUnlocked()
-            || prayer == PrayerData.RIGOUR && !player.isRigourUnlocked()
-            || prayer == PrayerData.AUGURY && !player.getAuguryUnlocked()) {
-            if (player.getRights() != PlayerRights.OWNER && player.getRights() != PlayerRights.DEVELOPER) {
-                locked = true;
-            }
-        }
-
-        if (locked) {
-            if (msg) {
-                player.getPacketSender().sendMessage("You have not unlocked that Prayer yet.");
-            }
-            return false;
         }
 
         // Duel, disabled prayer?

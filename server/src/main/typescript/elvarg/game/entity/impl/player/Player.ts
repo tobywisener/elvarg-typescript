@@ -628,6 +628,7 @@ export class Player extends Mobile {
         this.setResetMovementQueue(true);
         this.getCombat().reset();
         this.getSkillManager().ensureCombatBaseline();
+        this.getSkillManager().updateSkill(Skill.PRAYER);
         // Equipment is restored from the save without going through the equip
         // packet path, so the weapon interface/fight-styles/attack animation
         // (all driven by player.weapon, set here) are never assigned on login.

@@ -271,12 +271,6 @@ export class SkillManager {
             .setExperience(skill, SkillManager.getExperienceForLevel(level));
         this.updateSkill(skill);
 
-        if (skill == Skill.PRAYER) {
-            this.player.getPacketSender().sendConfig(709, PrayerHandler.canUse(this.player, PrayerData.PRESERVE, false) ? 1 : 0);
-            this.player.getPacketSender().sendConfig(711, PrayerHandler.canUse(this.player, PrayerData.RIGOUR, false) ? 1 : 0);
-            this.player.getPacketSender().sendConfig(713, PrayerHandler.canUse(this.player, PrayerData.AUGURY, false) ? 1 : 0);
-        }
-
         // Update weapon tab to send combat level etc.
         this.player.setHasVengeance(false);
         BonusManager.update(this.player);
@@ -289,9 +283,19 @@ export class SkillManager {
         const maxLevel = this.getMaxLevel(skill);
         const currentLevel = this.getCurrentLevel(skill);
 
-        // Update prayer tab if it's the prayer skill.
+        // Update the Prayer tab's level text.
         if (skill === Skill.PRAYER) {
             this.player.getPacketSender().sendString(currentLevel + "/" + maxLevel, 687);
+        }
+
+        if (skill === Skill.PRAYER || skill === Skill.DEFENCE) {
+            const prayerLevel = this.getMaxLevel(Skill.PRAYER);
+            const defenceLevel = this.getMaxLevel(Skill.DEFENCE);
+            this.player.getPacketSender()
+                .sendVarbit(5453, prayerLevel >= PrayerData.PRESERVE.requirement ? 1 : 0)
+                .sendVarbit(3909, prayerLevel >= PrayerData.CHIVALRY.requirement && defenceLevel >= 60 ? 8 : 0)
+                .sendVarbit(5451, prayerLevel >= PrayerData.RIGOUR.requirement && defenceLevel >= 70 ? 1 : 0)
+                .sendVarbit(5452, prayerLevel >= PrayerData.AUGURY.requirement && defenceLevel >= 70 ? 1 : 0);
         }
 
         // Send total level
