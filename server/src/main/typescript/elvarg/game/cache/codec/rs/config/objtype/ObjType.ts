@@ -215,7 +215,22 @@ export class ObjType extends Type {
                 this.groundActions[opcode - 30] = null;
             }
         } else if (opcode >= 35 && opcode < 40) {
-            this.inventoryActions[opcode - 35] = this.readString(buffer);
+            const index = opcode - 35;
+            const action = this.readString(buffer);
+            if (
+                index === 4 &&
+                action.toLowerCase() === "revert" &&
+                this.inventoryActions[4]?.toLowerCase() === "drop"
+            ) {
+                const spare = this.inventoryActions.slice(0, 4).lastIndexOf(null);
+                if (spare >= 0) {
+                    this.inventoryActions[spare] = action;
+                } else {
+                    this.inventoryActions[index] = action;
+                }
+            } else {
+                this.inventoryActions[index] = action;
+            }
         } else if (opcode === 40) {
             const count = buffer.readUnsignedByte();
             this.recolorFrom = new Array(count);
