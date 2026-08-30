@@ -69,6 +69,7 @@ import { EffectSpells } from "../game/content/combat/magic/EffectSpells";
 import { CombatSpells } from "../game/content/combat/magic/CombatSpells";
 import { TeleportHandler } from "../game/model/teleportation/TeleportHandler";
 import { ArceuusSpells } from "../game/content/combat/magic/ArceuusSpells";
+import { SpellTeleports } from "../game/content/combat/magic/SpellTeleports";
 
 const OBJECT_ACTIONS = new ObjectActionPacketListener();
 const NPC_ACTIONS = new NPCOptionPacketListener();
@@ -317,8 +318,7 @@ class ClientConnection {
           continue;
         case "spell_on_ground":
           if (this.player) {
-            const spellId = [packet.spellChild, packet.spellWidget & 0xffff, packet.spellItemId]
-              .find((id) => id === 1168) ?? packet.spellChild;
+            const spellId = this.resolveClientCombatSpellId(packet.spellWidget, packet.spellChild, packet.spellItemId);
             MAGIC_ITEMS.castGroundItem(this.player, packet.groundItemId, packet.x, packet.y, spellId);
           }
           continue;
@@ -415,6 +415,11 @@ class ClientConnection {
               this.player, actionPacket.groupId, actionPacket.childId, actionPacket.slot
             )) {
               // Cache-native combat autocast controls reuse the existing spell state.
+            } else if (SpellTeleports.handleSelf(
+              this.player,
+              this.resolveSpellName(actionPacket.widgetId, actionPacket.groupId, actionPacket.childId, actionPacket.itemId),
+            )) {
+              // Standard and Ancient teleport spells use the shared cache-name route.
             } else if (LunarSpells.handleSelf(
               this.player,
               this.resolveSpellName(actionPacket.widgetId, actionPacket.groupId, actionPacket.childId, actionPacket.itemId),

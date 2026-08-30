@@ -73,7 +73,9 @@ const SPELL_UNLOCK_VARPS: ReadonlyArray<readonly [number, number]> = [
   [165, 0x7fffffff],  // Plague City (Ardougne Teleport)
   [212, 0x7fffffff],  // Watchtower
   [267, 0x7fffffff],  // Mage Arena (god spells and Charge)
+  [302, 0x7fffffff],  // Priest in Peril (Arceuus Morytania teleports)
   [335, 0x7fffffff],  // Eadgar's Ruse (Trollheim Teleport)
+  [365, 0x7fffffff],  // Monkey Madness I (Ape Atoll Dungeon Teleport)
   [440, 15],
   [823, 190],         // Lunar Diplomacy's direct spellbook state
   [980, 0x7fffffff],  // The Great Brain Robbery (Harmony Island Teleport)
@@ -83,15 +85,18 @@ const SPELL_UNLOCK_VARBITS: ReadonlyArray<readonly [number, number]> = [
   [358, 0x7fffffff],   // Desert Treasure (Ancient spellbook)
   [2448, 0x7fffffff],  // Lunar Diplomacy (Lunar spells)
   [3618, 0x7fffffff],  // Dream Mentor
-  [4500, 0x7fffffff],  // Karamja diary (Tan Leather / Recharge Dragonstone)
+  [1914, 50],           // Recipe for Disaster (Ape Atoll Teleport)
+  [4533, 1],           // Fremennik hard diary (Tan Leather / Recharge Dragonstone)
+  [1505, 1],           // Bones to Peaches client unlock
+  [4554, 30],          // Mage Training Arena (Bones to Peaches)
   [4896, 1000],
   [6067, 6],
-  [5619, 0x7fffffff],  // Client of Kourend
+  [5619, 9],           // Client of Kourend
   [9133, 1],
   [9631, 1],
-  [9649, 0x7fffffff],  // Varlamore spell teleport
+  [9649, 127],         // Twilight's Promise (Civitas illa Fortis Teleport)
   [12296, 0x7fffffff], // Arceuus spell requirements
-  [18314, 0x7fffffff], // Sailing spell teleport
+  [18314, 6],          // Sailing spell teleports
 ];
 // The native OSRS "skillmulti" production list (clientscript 2046, group 270) mounted into
 // the chatbox modal slot - same interface smelting/smithing use. Exported so NetworkBuilder

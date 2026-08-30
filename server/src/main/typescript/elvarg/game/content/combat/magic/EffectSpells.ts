@@ -210,3 +210,4 @@ for (const maybeSpell of Object.values(EffectSpells)) {
         EffectSpells.map.set(maybeSpell.spellId(), maybeSpell);
     }
 }
+EffectSpells.map.set(6884, EffectSpells.BONES_TO_PEACHES);

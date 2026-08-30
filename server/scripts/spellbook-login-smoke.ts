@@ -10,6 +10,13 @@ import { encodeGameframeBootstrap } from "../src/main/typescript/elvarg/net/prot
 
 const VARBIT_PACKET_ID = 42;
 const VARBIT_SPELLBOOK = 4070;
+const VARBIT_APE_ATOLL_TELEPORT = 1914;
+const VARBIT_FREMENNIK_HARD_DIARY = 4533;
+const VARBIT_BONES_TO_PEACHES_UNLOCK = 1505;
+const VARBIT_BONES_TO_PEACHES = 4554;
+const VARBIT_KOUREND_CASTLE_TELEPORT = 5619;
+const VARBIT_CIVITAS_ILLA_FORTIS_TELEPORT = 9649;
+const VARBIT_BOAT_TELEPORTS = 18314;
 const MAGIC_TAB_UID = (161 << 16) | 82;
 const MAGIC_TAB_GROUP = 218;
 
@@ -49,6 +56,32 @@ assert.equal(spellbookVarbit(MagicSpellbook.ANCIENT), 1, "ancient spellbook");
 assert.equal(spellbookVarbit(MagicSpellbook.LUNAR), 2, "lunar spellbook");
 assert.equal(spellbookVarbit(MagicSpellbook.ARCEUUS), 3, "arceuus spellbook");
 console.log("  spellbook: every book publishes varbit 4070");
+
+assert.equal(
+    varbits(sendTab(MagicSpellbook.LUNAR)).find((v) => v.id === VARBIT_FREMENNIK_HARD_DIARY)?.value,
+    1,
+    "Lunar spellbook must unlock Tan Leather and Recharge Dragonstone without the Fremennik hard diary",
+);
+console.log("  spellbook: Fremennik hard-diary spells are unlocked");
+
+assert.equal(
+    varbits(sendTab(MagicSpellbook.NORMAL)).find((v) => v.id === VARBIT_APE_ATOLL_TELEPORT)?.value,
+    50,
+    "normal spellbook must unlock Ape Atoll Teleport without Recipe for Disaster",
+);
+console.log("  spellbook: quest-gated teleports are unlocked");
+
+const normalVarbits = varbits(sendTab(MagicSpellbook.NORMAL));
+for (const [id, value, label] of [
+    [VARBIT_BONES_TO_PEACHES, 30, "Bones to Peaches"],
+    [VARBIT_BONES_TO_PEACHES_UNLOCK, 1, "Bones to Peaches cache unlock"],
+    [VARBIT_KOUREND_CASTLE_TELEPORT, 9, "Kourend Castle Teleport"],
+    [VARBIT_CIVITAS_ILLA_FORTIS_TELEPORT, 127, "Civitas illa Fortis Teleport"],
+    [VARBIT_BOAT_TELEPORTS, 6, "boat teleports"],
+] as const) {
+    assert.equal(normalVarbits.find((v) => v.id === id)?.value, value, `${label} unlock state`);
+}
+console.log("  spellbook: newer quest and activity-gated spells are unlocked");
 
 // The tab call also has to mount the magic tab, otherwise login would need both calls.
 const ancient = sendTab(MagicSpellbook.ANCIENT);
