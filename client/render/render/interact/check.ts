@@ -445,7 +445,8 @@ export function checkInteractions(host: WebGLOsrsRendererHost, ): void {
                 playerIds.add(idx);
 
                 const sidRaw = playerEcs.getServerIdForIndex?.(idx);
-                const sid = (typeof sidRaw === "number" ? sidRaw | 0 : idx | 0) | 0;
+                if (typeof sidRaw !== "number") return;
+                const sid = sidRaw | 0;
                 const myId = host.osrsClient.controlledPlayerServerId | 0;
                 if ((sid | 0) === (myId | 0)) return;
 
