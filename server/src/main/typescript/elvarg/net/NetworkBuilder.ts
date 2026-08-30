@@ -425,7 +425,12 @@ class ClientConnection {
               this.resolveSpellName(actionPacket.widgetId, actionPacket.groupId, actionPacket.childId, actionPacket.itemId),
             )) {
               // Lunar self-casts and teleports are identified by their cache spell name.
-            } else if (EffectSpells.handleSpell(this.player, actionPacket.itemId ?? -1)) {
+            } else if (EffectSpells.handleSpell(
+              this.player,
+              EffectSpells.forSpellName(this.resolveSpellName(
+                actionPacket.widgetId, actionPacket.groupId, actionPacket.childId, actionPacket.itemId,
+              ))?.spellId() ?? actionPacket.itemId ?? -1,
+            )) {
               // Utility and self-cast spells are represented by their cache item id.
             } else if (ArceuusSpells.handleSpell(
               this.player,

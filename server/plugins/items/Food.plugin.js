@@ -40,6 +40,8 @@ const FOOD = new Map([
   [ItemIds.MANTA_RAY, { heal: 22 }],
   [ItemIds.COOKED_KARAMBWAN, { heal: 18, karambwan: true }],
   [ItemIds.ANGLERFISH, { heal: 22, anglerfish: true }],
+  [ItemIdentifiers.BANANA, { heal: 2 }],
+  [ItemIdentifiers.PEACH, { heal: 8 }],
   [ItemIdentifiers.BANDAGES, { heal: 12, verb: "use" }],
   [ItemIds.POTATO, { heal: 1 }],
   [ItemIds.BAKED_POTATO, { heal: 4 }],

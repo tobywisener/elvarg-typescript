@@ -83,6 +83,14 @@ export class EffectSpells extends Spell {
         return true;
     }
 
+    public static forSpellName(name: string | undefined): EffectSpells | null {
+        switch (name?.trim().toLowerCase()) {
+            case "bones to bananas": return EffectSpells.BONES_TO_BANANAS;
+            case "bones to peaches": return EffectSpells.BONES_TO_PEACHES;
+            default: return null;
+        }
+    }
+
 
 
 
@@ -210,4 +218,5 @@ for (const maybeSpell of Object.values(EffectSpells)) {
         EffectSpells.map.set(maybeSpell.spellId(), maybeSpell);
     }
 }
+EffectSpells.map.set(3280, EffectSpells.BONES_TO_BANANAS);
 EffectSpells.map.set(6884, EffectSpells.BONES_TO_PEACHES);
