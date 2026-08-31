@@ -7,6 +7,7 @@ const { ObjectIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
 const POOL_IDS = [
   ObjectIds.FANCY_REJUVENATION_POOL,
   ObjectIds.ORNATE_REJUVENATION_POOL,
+  ObjectIds.ORNATE_POOL_OF_REJUVENATION,
 ];
 const ATTR_BLEED_TASK_KEY = "combat:bleed:taskKey";
 
@@ -24,10 +25,7 @@ function isRecentPvpCombat(player) {
     ) {
       return false;
     }
-    return (
-      combat?.getAttackDelay?.() > 0 ||
-      other.getCombat?.()?.getAttackDelay?.() > 0
-    );
+    return true;
   });
 }
 
@@ -79,6 +77,7 @@ function restoreRunEnergy(player) {
 
 function clearPoisonAndVenom(player) {
   player.setPoisonDamage?.(0);
+  player.setVenomed?.(false);
   player.getPacketSender?.().sendPoisonType?.(0);
 }
 
