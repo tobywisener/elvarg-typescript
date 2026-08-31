@@ -1,6 +1,9 @@
 import { strict as assert } from "assert";
 
 const Pool = require("../plugins/objects/RejuvinationPool.plugin");
+const originalDateNow = Date.now;
+let now = 1_000;
+Date.now = () => now;
 
 let click: ((event: any) => void) | undefined;
 let poolIds: number[] = [];
@@ -67,8 +70,14 @@ assert.match(messages.pop() ?? "", /fully rejuvenated/);
 
 messages.length = 0;
 event.handled = false;
+click!(event);
+assert.equal(event.handled, true);
+assert.equal(messages.length, 0, "the one-second delay suppresses repeat clicks");
+
+now += 1_000;
 player.getCombat = () => ({ getTarget: () => ({ isPlayer: () => true, isRegistered: () => true, getHitpoints: () => 99 }), getAttacker: () => null });
 click!(event);
 assert.equal(event.handled, true);
 assert.equal(messages.pop(), "You can't drink from the pool during combat.");
+Date.now = originalDateNow;
 console.log("rejuvenation pool ok: object 29241 restores and respects PvP combat");
