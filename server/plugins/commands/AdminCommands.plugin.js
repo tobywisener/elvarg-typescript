@@ -30,7 +30,8 @@ const {
   NpcSpawnDefinitionLoader,
 } = require("../../src/main/typescript/elvarg/game/definition/loader/impl/NpcSpawnDefinitionLoader");
 const { NpcDefinition } = require("../../src/main/typescript/elvarg/game/definition/NpcDefinition");
-const { NpcDefinitionLoader } = require("../../src/main/typescript/elvarg/game/definition/loader/impl/NpcDefinitionLoader");
+const { CacheDefinitions } = require("../../src/main/typescript/elvarg/game/cache/CacheDefinitions");
+const { findNpcRigAnimations, getLastSequenceId } = require("../../src/main/typescript/elvarg/game/cache/NpcAnimationScanner");
 const {
   ShopDefinitionLoader,
 } = require("../../src/main/typescript/elvarg/game/definition/loader/impl/ShopDefinitionLoader");
@@ -328,12 +329,35 @@ function queueNpcSpawn(player, id, amount = 1, onSpawn = null, xOffset = 0, yOff
   return spawned;
 }
 
+function getNpcCachedAnimations(npc) {
+  return [...new Set([
+    npc?.idleSeqId,
+    npc?.walkSeqId,
+    npc?.walkBackSeqId,
+    npc?.walkLeftSeqId,
+    npc?.walkRightSeqId,
+    npc?.turnLeftSeqId,
+    npc?.turnRightSeqId,
+    npc?.runSeqId,
+    npc?.runBackSeqId,
+    npc?.runLeftSeqId,
+    npc?.runRightSeqId,
+  ].filter((id) => Number.isInteger(id) && id >= 0 && id < 65535))];
+}
+
 function getNpcPossibleAnimations(npcId, file = NPC_ANIMATION_FILES.possible) {
+  let cached = [];
+  try {
+    cached = getNpcCachedAnimations(CacheDefinitions.getNpc(npcId));
+  } catch {
+    // The cache is not available in offline tooling; use the collected fallback.
+  }
   const source = JSON.parse(fs.readFileSync(file, "utf8"));
   const possible = source?.[String(npcId)];
-  return Array.isArray(possible)
+  const observed = Array.isArray(possible)
     ? possible.filter((id) => Number.isInteger(id) && id >= 0 && id < 65535)
     : [];
+  return [...new Set([...observed, ...cached])];
 }
 
 function getNpcIdsWithSamePossibleAnimations(npcId, file = NPC_ANIMATION_FILES.possible) {
@@ -369,6 +393,17 @@ function writeNpcCombatAnimations(npcIds, animations, file = NPC_ANIMATION_FILES
     };
   }
   fs.writeFileSync(file, `${JSON.stringify(definitions, null, 2)}\n`, "utf8");
+}
+
+function applyNpcCombatAnimations(npcIds, animations, definitionForId = (id) => NpcDefinition.definitions.get(id)) {
+  const fields = { attack: "attackAnim", block: "defenceAnim", death: "deathAnim", spawn: "spawnAnim" };
+  for (const npcId of Array.isArray(npcIds) ? npcIds : [npcIds]) {
+    const definition = definitionForId(npcId);
+    if (!definition) continue;
+    for (const [role, field] of Object.entries(fields)) {
+      if (Number.isInteger(animations[role])) definition[field] = animations[role];
+    }
+  }
 }
 
 function normalizeNpcAnimationProperty(value) {
@@ -443,7 +478,7 @@ function startNpcAnimationQuestionnaire(api, player, npcId, possibleAnimations) 
         NPC_ANIMATION_FILES.combat,
         (matchingNpcId) => NpcDefinition.forId(matchingNpcId)?.getName?.()
       );
-      new NpcDefinitionLoader().load();
+      applyNpcCombatAnimations(matchingNpcIds, assignments);
       player.getPacketSender().sendMessage(`Saved animation definitions for ${matchingNpcIds.length} NPC${matchingNpcIds.length === 1 ? "" : "s"} to npc-combat-defs.json.`);
       return;
     }
@@ -456,6 +491,64 @@ function startNpcAnimationQuestionnaire(api, player, npcId, possibleAnimations) 
     ask(animationId);
   };
 
+  next();
+}
+
+function startNpcAnimationScanner(api, player, npcId, possibleAnimations) {
+  let npc = null;
+  queueNpcSpawn(player, npcId, 1, (spawned) => {
+    npc = spawned;
+  }, 1);
+  if (!npc) {
+    player.getPacketSender().sendMessage("Unable to spawn that NPC.");
+    return;
+  }
+
+  const animationLoopKey = {};
+  const assignments = {};
+  let index = 0;
+  const stop = () => {
+    TaskManager.cancelTasks(animationLoopKey);
+    npc.performAnimation(Animation.DEFAULT_RESET_ANIMATION);
+  };
+  const next = () => {
+    if (index >= possibleAnimations.length) {
+      save();
+      return;
+    }
+
+    const animationId = possibleAnimations[index++];
+    loopNpcAnimation(npc, animationId, animationLoopKey);
+    player.getPacketSender().sendMessage(`NPC ${npcId}: compatible animation ${animationId} (${index}/${possibleAnimations.length}).`);
+    api.sendMultiChatboxPrompt(
+      player,
+      "Choose an action for this animation.",
+      "Assign", () => assign(animationId),
+      "Skip", next,
+      "Save & stop", save
+    );
+  };
+  const save = () => {
+    stop();
+    if (Object.keys(assignments).length === 0) {
+      player.getPacketSender().sendMessage("No animation assignments saved.");
+      return;
+    }
+    const matchingNpcIds = getNpcIdsWithSamePossibleAnimations(npcId);
+    writeNpcCombatAnimations(matchingNpcIds, assignments);
+    applyNpcCombatAnimations(matchingNpcIds, assignments);
+    player.getPacketSender().sendMessage(`Saved ${Object.keys(assignments).join(", ")} animations for ${matchingNpcIds.length} matching NPC${matchingNpcIds.length === 1 ? "" : "s"}.`);
+  };
+  const assign = (animationId) => {
+    api.sendMultiChatboxPrompt(
+      player,
+      "Which animation role is this?",
+      "Attack", () => { assignments.attack = animationId; next(); },
+      "Block / defence", () => { assignments.block = animationId; next(); },
+      "Death", () => { assignments.death = animationId; next(); },
+      "Spawn", () => { assignments.spawn = animationId; next(); }
+    );
+  };
   next();
 }
 
@@ -791,13 +884,13 @@ module.exports = {
       return true;
     });
 
-    api.registerCommand("npcanim", ({ player, parts }) => {
+    const npcAnimationCommand = ({ player, parts }) => {
       if (!requireRights(player, ownerOrDev)) {
         return true;
       }
       const id = parseIntArg(parts[1]);
       if (id === null || id < 0) {
-        player.getPacketSender().sendMessage("Usage: ::npcanim npc-id");
+        player.getPacketSender().sendMessage("Usage: ::npcanims npc-id");
         return true;
       }
 
@@ -806,7 +899,7 @@ module.exports = {
         possibleAnimations = getNpcPossibleAnimations(id);
       } catch (error) {
         console.error(error);
-        player.getPacketSender().sendMessage("Unable to read npc-animations.json.");
+        player.getPacketSender().sendMessage("Unable to read NPC animations.");
         return true;
       }
       if (possibleAnimations.length === 0) {
@@ -819,6 +912,46 @@ module.exports = {
       } catch (error) {
         console.error(error);
         player.getPacketSender().sendMessage("Unable to start NPC animation questionnaire.");
+      }
+      return true;
+    };
+    api.registerCommand("npcanim", npcAnimationCommand);
+    api.registerCommand("npcanims", npcAnimationCommand);
+
+    api.registerCommand("npcanimscan", ({ player, parts }) => {
+      if (!requireRights(player, ownerOrDev)) {
+        return true;
+      }
+      const id = parseIntArg(parts[1]);
+      if (id === null || id < 0) {
+        player.getPacketSender().sendMessage("Usage: ::npcanimscan npc-id [first-sequence last-sequence]");
+        return true;
+      }
+
+      try {
+        const baseAnimations = getNpcCachedAnimations(CacheDefinitions.getNpc(id));
+        const minimumId = parts.length >= 4 ? parseIntArg(parts[2]) : 0;
+        const maximumId = parts.length >= 4 ? parseIntArg(parts[3]) : getLastSequenceId();
+        if (baseAnimations.length === 0 || minimumId === null || maximumId === null || minimumId < 0 || maximumId < minimumId) {
+          player.getPacketSender().sendMessage("Use a valid sequence range.");
+          return true;
+        }
+        player.getPacketSender().sendMessage(`Scanning cache animations ${minimumId}-${maximumId}...`);
+        void findNpcRigAnimations(baseAnimations, minimumId, maximumId)
+          .then((possibleAnimations) => {
+            if (possibleAnimations.length === 0) {
+              player.getPacketSender().sendMessage(`No compatible animations found for NPC ${id} in ${minimumId}-${maximumId}.`);
+              return;
+            }
+            startNpcAnimationScanner(api, player, id, possibleAnimations);
+          })
+          .catch((error) => {
+            console.error(error);
+            player.getPacketSender().sendMessage("Unable to scan cache animation data.");
+          });
+      } catch (error) {
+        console.error(error);
+        player.getPacketSender().sendMessage("Unable to scan cache animation data.");
       }
       return true;
     });
@@ -1655,8 +1788,10 @@ module.exports = {
   },
   _test: {
     getNpcPossibleAnimations,
+    getNpcCachedAnimations,
     getNpcIdsWithSamePossibleAnimations,
     normalizeNpcAnimationProperty,
     writeNpcCombatAnimations,
+    applyNpcCombatAnimations,
   },
 };

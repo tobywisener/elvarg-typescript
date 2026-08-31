@@ -21,6 +21,7 @@ try {
     }));
 
     assert.deepEqual(plugin._test.getNpcPossibleAnimations(1705, possibleFile), [3915, 3916]);
+    assert.deepEqual(plugin._test.getNpcCachedAnimations({ idleSeqId: 894, walkSeqId: 10792, walkBackSeqId: -1 }), [894, 10792]);
     assert.deepEqual(plugin._test.getNpcIdsWithSamePossibleAnimations(1705, possibleFile), [1705, 1706]);
     assert.equal(plugin._test.normalizeNpcAnimationProperty("specialAttack"), "specialAttack");
     assert.equal(plugin._test.normalizeNpcAnimationProperty("__proto__"), null);
@@ -33,6 +34,12 @@ try {
     assert.deepEqual(JSON.parse(fs.readFileSync(combatFile, "utf8")).npcs[1706], {
         name: "Ravager (variant)",
         anims: { block: 3916, spawn: 6871 },
+    });
+    const definitions: Record<number, any> = { 1705: {}, 1706: {} };
+    plugin._test.applyNpcCombatAnimations([1705, 1706], { attack: 3915, block: 3916 }, (id: number) => definitions[id]);
+    assert.deepEqual(definitions, {
+        1705: { attackAnim: 3915, defenceAnim: 3916 },
+        1706: { attackAnim: 3915, defenceAnim: 3916 },
     });
     console.info("npc animation command persistence smoke passed");
 } finally {

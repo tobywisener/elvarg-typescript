@@ -4,6 +4,7 @@
     "plugins/world/data/**",
     "plugins/bots/data/**",
     "data/npc_spawns*.json",
-    "data/definitions/npc_spawns*.json"
+    "data/definitions/npc_spawns*.json",
+    "data/definitions/npc-combat-defs.json"
   ]
 }
