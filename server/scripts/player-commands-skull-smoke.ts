@@ -2,6 +2,10 @@ import * as assert from "node:assert/strict";
 import { MultiChatboxPrompt } from "../src/main/typescript/elvarg/game/model/menu/MultiChatboxPrompt";
 import { SkullType } from "../src/main/typescript/elvarg/game/model/SkullType";
 
+const damageFormulasPath = require.resolve(
+  "../src/main/typescript/elvarg/game/content/combat/formula/DamageFormulas"
+);
+require.cache[damageFormulasPath] = { exports: { DamageFormulas: {} } } as NodeModule;
 const plugin = require("../plugins/commands/PlayerCommands.plugin.js");
 
 const commands = new Map<string, (event: any) => boolean>();
@@ -35,6 +39,7 @@ const sender: any = {
   },
 };
 const player = { getPacketSender: () => sender };
+const worldPlayers: any[] = [];
 const combatFactory = {
   inCombat: () => inCombat,
   skull: (target: any, type: SkullType, duration: number) => {
@@ -43,10 +48,10 @@ const combatFactory = {
 };
 
 plugin.register({
-  getWorld: () => ({}),
+  getWorld: () => ({ getPlayers: () => worldPlayers }),
   getItemOnGroundManager: () => ({}),
   getCombatFactory: () => combatFactory,
-  getPlayerPunishment: () => ({}),
+  getPlayerPunishment: () => ({ muted: () => false, IPMuted: () => false }),
   registerCommand: (name: string, handler: (event: any) => boolean) => {
     commands.set(name, handler);
   },
@@ -114,6 +119,23 @@ assert.deepStrictEqual(skulls[skulls.length - 1], {
   duration: 60 * 30,
 });
 assert.strictEqual(sent.removals, 4, "every answer must close its option chatbox");
+
+const yellCommand = commands.get("yell");
+assert.ok(yellCommand);
+const staff = {
+  isStaff: () => true,
+  isDonator: () => false,
+  getUsername: () => "Developer",
+  getHostAddress: () => "127.0.0.1",
+  getRights: () => ({ getYellTag: () => "[Developer]" }),
+  getChatIcons: () => [1],
+  getYellDelay: () => ({ finished: () => true, start: () => undefined }),
+  getPacketSender: () => sender,
+};
+worldPlayers.push({ getPacketSender: () => sender });
+sent.messages.length = 0;
+yellCommand({ player: staff, raw: "yell hello" });
+assert.equal(sent.messages[sent.messages.length - 1], "<col=ff0000>[Developer] <img=1> Developer: hello</col>");
 
 const originalNow = Date.now;
 let now = originalNow();

@@ -308,11 +308,12 @@ module.exports = {
         return true;
       }
 
-      const spriteId = player.getRights().getSpriteId();
-      const sprite = spriteId === -1 ? "" : `<img=${spriteId}>`;
+      const sprite = (player.getChatIcons?.() ?? [])
+        .map((icon) => `<img=${icon}>`)
+        .join("");
       const prefix = yellPrefix(player);
-      const yell = `${prefix} ${sprite} ${player.getUsername()}: ${yellMessage}`.trim();
-      World.getPlayers().forEach((p) => p?.getPacketSender()?.sendSpecialMessage(player.getUsername(), 21, yell));
+      const yell = `<col=ff0000>${prefix} ${sprite} ${player.getUsername()}: ${yellMessage}</col>`.trim();
+      World.getPlayers().forEach((p) => p?.getPacketSender()?.sendMessage(yell));
 
       const delaySeconds = yellDelaySeconds(player);
       if (delaySeconds > 0) {
