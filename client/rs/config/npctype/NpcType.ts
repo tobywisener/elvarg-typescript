@@ -5,6 +5,18 @@ import { BasTypeLoader } from "../bastype/BasTypeLoader";
 import { VarManager } from "../vartype/VarManager";
 import { NpcTypeLoader } from "./NpcTypeLoader";
 
+const THRALL_NAMES: Readonly<Record<number, string>> = {
+    10878: "Lesser ghostly thrall",
+    10879: "Superior ghostly thrall",
+    10880: "Greater ghostly thrall",
+    10881: "Lesser skeletal thrall",
+    10882: "Superior skeletal thrall",
+    10883: "Greater skeletal thrall",
+    10884: "Lesser zombie thrall",
+    10885: "Superior zombie thrall",
+    10886: "Greater zombie thrall",
+};
+
 export enum NpcDrawPriority {
     DRAW_PRIORITY_FIRST = 0,
     DRAW_PRIORITY_DEFAULT = 1,
@@ -103,7 +115,7 @@ export class NpcType extends Type {
 
     constructor(id: number, cacheInfo: CacheInfo) {
         super(id, cacheInfo);
-        this.name = "null";
+        this.name = THRALL_NAMES[id] ?? "null";
         this.size = 1;
         this.idleSeqId = -1;
         this.turnLeftSeqId = -1;

@@ -44,6 +44,7 @@
     "test:vengeance-timer": "tsx tests/vengeance-timer-plugin.test.ts",
     "test:head-icons": "tsx tests/player-head-icons.test.ts",
     "test:appearance-transform": "tsx tests/appearance-npc-transform.test.ts",
+    "test:spell-quest-gate": "tsx tests/spell-quest-gate.test.ts",
     "test:webrtc-world-list": "tsx tests/webrtc-world-list.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "export-textures": "tsx scripts/cache/export-textures.ts",

@@ -18,6 +18,10 @@ const DEVICE_OPTION_INTERFACE_SCALING = 27;
 const UIZOOM_DEFAULT_DESKTOP_PERCENT = 100;
 const UIZOOM_DEFAULT_MOBILE_PERCENT = 175;
 const UIZOOM_MAX_PERCENT = 400;
+const BACKPACK_INVENTORY = 93;
+const EQUIPMENT_INVENTORY = 94;
+const BOOK_OF_THE_DEAD = 25818;
+const SPELL_REQUIREMENT_SCRIPT = 19;
 
 function getUiZoomDefaultPercent(ctx: any): number {
     const wm = ctx.widgetManager as any;
@@ -115,6 +119,12 @@ export function registerClientOps(handlers: HandlerMap): void {
         const inv = ctx.getInventory(invId);
         if (inv) {
             total = inv.count(itemId);
+        }
+
+        // The cache spell-requirement script counts generic items in the backpack,
+        // but Book of the dead is equipped in the shield slot.
+        if (ctx.currentScriptId === SPELL_REQUIREMENT_SCRIPT && invId === BACKPACK_INVENTORY && itemId === BOOK_OF_THE_DEAD) {
+            total = ctx.getInventory(EQUIPMENT_INVENTORY)?.count(itemId) ?? 0;
         }
         ctx.pushInt(total);
     });

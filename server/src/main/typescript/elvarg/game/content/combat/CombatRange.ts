@@ -83,6 +83,25 @@ export class CombatRange {
             this.overlaps(this.bounds(a), this.bounds(b));
     }
 
+    /** A tile on the source's current side of a target, exactly `range` tiles from its footprint. */
+    static rangedDestination(source: Mobile, target: Mobile, range: number): Location {
+        const sourceBounds = this.bounds(source);
+        const targetBounds = this.bounds(target);
+        const targetLocation = target.getLocation();
+        const distance = Math.max(1, range | 0);
+        const closest = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max));
+
+        return new Location(
+            sourceBounds.maxX < targetBounds.minX ? targetBounds.minX - distance
+                : sourceBounds.minX > targetBounds.maxX ? targetBounds.maxX + distance
+                    : closest(source.getLocation().getX(), targetBounds.minX, targetBounds.maxX),
+            sourceBounds.maxY < targetBounds.minY ? targetBounds.minY - distance
+                : sourceBounds.minY > targetBounds.maxY ? targetBounds.maxY + distance
+                    : closest(source.getLocation().getY(), targetBounds.minY, targetBounds.maxY),
+            targetLocation.getZ(),
+        );
+    }
+
     private static bounds(entity: Mobile): Bounds {
         const location = entity.getLocation();
         const size = Math.max(1, entity.getSize() | 0);

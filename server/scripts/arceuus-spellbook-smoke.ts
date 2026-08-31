@@ -1,6 +1,7 @@
 import * as assert from "node:assert/strict";
 import { ArceuusItemSpells } from "../src/main/typescript/elvarg/game/content/combat/magic/ArceuusItemSpells";
 import { ArceuusSpells } from "../src/main/typescript/elvarg/game/content/combat/magic/ArceuusSpells";
+import { ArceuusThralls } from "../src/main/typescript/elvarg/game/content/combat/magic/ArceuusThralls";
 import { ArceuusUtilities } from "../src/main/typescript/elvarg/game/content/combat/magic/ArceuusUtilities";
 import { CombatSpells } from "../src/main/typescript/elvarg/game/content/combat/magic/CombatSpells";
 import { EffectSpells } from "../src/main/typescript/elvarg/game/content/combat/magic/EffectSpells";
@@ -69,6 +70,31 @@ function main() {
     assert.equal(ArceuusItemSpells.BASIC_REANIMATION, 11997);
     assert.equal(ArceuusItemSpells.MASTER_REANIMATION, 6888);
     assert.equal(EffectSpells.forSpellId(9136), EffectSpells.VENGEANCE, "cache Vengeance id should resolve");
+
+    const summonCalls: any[][] = [];
+    const originalSummon = ArceuusThralls.summon;
+    (ArceuusThralls as any).summon = (...args: any[]) => summonCalls.push(args);
+    try {
+        (selfSpells.get("resurrect superior ghost") as any).data.effect({});
+        (selfSpells.get("resurrect greater zombie") as any).data.effect({});
+    } finally {
+        (ArceuusThralls as any).summon = originalSummon;
+    }
+    assert.deepEqual(summonCalls.map((call) => call.slice(1)), [[10879, 4, 2, 6], [10886, 6, 3, 1]]);
+    for (const [name, spell] of selfSpells) {
+        if (name.startsWith("resurrect ")) {
+            assert.deepEqual((spell as any).data.cooldown, { attribute: "arceuus:thrallUntil", duration: 30_000 });
+            assert.equal((spell as any).usesSharedCastDelay(), true);
+        }
+    }
+    assert.equal((selfSpells.get("demonic offering") as any).usesSharedCastDelay(), false);
+
+    let pvpMessage = "";
+    assert.equal(ArceuusSpells.handleSpell({
+        getCombat: () => ({ getTarget: () => ({ isPlayer: () => true }), getAttacker: () => null }),
+        getPacketSender: () => ({ sendMessage: (message: string) => pvpMessage = message }),
+    } as any, "resurrect lesser ghost"), true);
+    assert.equal(pvpMessage, "You cannot summon a Thrall during PvP combat.");
 
     const herbs = [new Item(199), new Item(3049), new Item(3051)];
     let herbloreXp = 0;

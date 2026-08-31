@@ -10,6 +10,10 @@ import { PendingHit } from "../hit/PendingHit";
 
 
 export abstract class CombatSpell extends Spell {
+  protected usesSharedCastDelay(): boolean {
+    return true;
+  }
+
   /**
    * Allows spells with a restricted target type to reject a cast before the
    * combat cycle consumes runes. Most combat spells may target anything that

@@ -81,6 +81,11 @@ const entity = (x: number, y: number, size: number, player: boolean): any => ({
 try {
     (World as any).isNpcOccupyingTile = () => false;
 
+    const sixTileDestination = CombatRange.rangedDestination(entity(0, 0, 1, false), entity(10, 10, 1, false), 6);
+    assert.deepEqual([sixTileDestination.getX(), sixTileDestination.getY()], [4, 4]);
+    const largeTargetDestination = CombatRange.rangedDestination(entity(20, 15, 1, false), entity(10, 10, 2, false), 6);
+    assert.deepEqual([largeTargetDestination.getX(), largeTargetDestination.getY()], [17, 17]);
+
     const movementCase = (
         allowed: (from: Location, to: Location) => boolean,
         expected: [number, number],

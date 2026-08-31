@@ -9,12 +9,15 @@ import { MagicSpellbook } from "../src/main/typescript/elvarg/game/model/MagicSp
 function spellbookPlayer() {
     let runesDeleted = 0;
     let experience = 0;
+    const attributes = new Map();
     const inventory = {
         containsAllItem: () => true,
         deletes: () => { runesDeleted++; },
     };
     const player: any = {
         getSpellbook: () => MagicSpellbook.LUNAR,
+        getAttribute: (key: unknown) => attributes.get(key),
+        setAttribute: (key: unknown, value: unknown) => attributes.set(key, value),
         getSkillManager: () => ({
             getCurrentLevel: () => 99,
             getMaxLevel: () => 99,

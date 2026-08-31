@@ -18,9 +18,14 @@ type TeleportSpell = {
     experience: number;
     runes: Item[];
     destination: Location;
+    cooldown?: { attribute: string; duration: number };
 };
 
-type SelfSpell = { id: number; level: number; experience: number; runes: Item[]; effect: (player: Player) => void };
+type SelfSpell = {
+    id: number; level: number; experience: number; runes: Item[]; effect: (player: Player) => void;
+    cooldown?: { attribute: string; duration: number };
+    castDelay?: boolean;
+};
 
 class ArceuusSelfSpell extends Spell {
     constructor(private readonly data: SelfSpell) { super(); }
@@ -31,6 +36,8 @@ class ArceuusSelfSpell extends Spell {
     equipmentRequired(): Item[] { return []; }
     startCast(): void { }
     getSpellbook(): MagicSpellbook { return MagicSpellbook.ARCEUUS; }
+    protected getCastCooldown() { return this.data.cooldown ?? null; }
+    protected usesSharedCastDelay() { return this.data.castDelay === true; }
     cast(player: Player): boolean {
         if (!this.canCast(player, false) || !this.canCast(player, true)) return true;
         this.data.effect(player);
@@ -51,6 +58,7 @@ class ArceuusTeleportSpell extends Spell {
     equipmentRequired(): Item[] { return []; }
     startCast(): void { }
     getSpellbook(): MagicSpellbook { return MagicSpellbook.ARCEUUS; }
+    protected getCastCooldown() { return this.data.cooldown ?? null; }
 
     cast(player: Player): boolean {
         if (!TeleportHandler.checkReqs(player, this.data.destination) || !this.canCast(player, false)) {
@@ -66,8 +74,9 @@ class ArceuusTeleportSpell extends Spell {
 }
 
 const rune = (id: number, amount = 1) => new Item(id, amount);
-const teleport = (level: number, experience: number, runes: Item[], x: number, y: number, z = 0) =>
-    new ArceuusTeleportSpell({ level, experience, runes, destination: new Location(x, y, z) });
+const teleport = (level: number, experience: number, runes: Item[], x: number, y: number, z = 0, cooldown?: TeleportSpell["cooldown"]) =>
+    new ArceuusTeleportSpell({ level, experience, runes, destination: new Location(x, y, z), cooldown });
+const THRALL_COOLDOWN = { attribute: "arceuus:thrallUntil", duration: 30_000 };
 
 /** Self-cast Arceuus spells. Targeted spells remain in their respective packet handlers. */
 export class ArceuusSpells {
@@ -95,10 +104,12 @@ export class ArceuusSpells {
         })],
         ["demonic offering", new ArceuusSelfSpell({
             id: 15346, level: 84, experience: 175, runes: [rune(566), rune(21880)],
+            cooldown: { attribute: "arceuus:offeringUntil", duration: 5_400 },
             effect: (player) => ArceuusOfferings.demonic(player),
         })],
         ["sinister offering", new ArceuusSelfSpell({
             id: 8796, level: 92, experience: 180, runes: [rune(565), rune(21880)],
+            cooldown: { attribute: "arceuus:offeringUntil", duration: 5_400 },
             effect: (player) => ArceuusOfferings.sinister(player),
         })],
         ["death charge", new ArceuusSelfSpell({
@@ -122,18 +133,18 @@ export class ArceuusSpells {
                 player.getPacketSender().sendRunEnergy();
             },
         })],
-        ["resurrect lesser ghost", new ArceuusSelfSpell({ id: 25511, level: 38, experience: 55, runes: [rune(558, 5), rune(556, 10), rune(564)], effect: (p) => ArceuusThralls.summon(p, 10878, 2, 1) })],
-        ["resurrect superior ghost", new ArceuusSelfSpell({ id: 25506, level: 57, experience: 70, runes: [rune(560, 5), rune(557, 10), rune(564)], effect: (p) => ArceuusThralls.summon(p, 10879, 4, 1) })],
-        ["resurrect greater ghost", new ArceuusSelfSpell({ id: 25507, level: 76, experience: 88, runes: [rune(565, 5), rune(554, 10), rune(564)], effect: (p) => ArceuusThralls.summon(p, 10880, 6, 1) })],
-        ["resurrect lesser skeleton", new ArceuusSelfSpell({ id: 25509, level: 38, experience: 55, runes: [rune(558, 5), rune(556, 10), rune(564)], effect: (p) => ArceuusThralls.summon(p, 10881, 2, 2) })],
-        ["resurrect superior skeleton", new ArceuusSelfSpell({ id: 25512, level: 57, experience: 70, runes: [rune(560, 5), rune(557, 10), rune(564)], effect: (p) => ArceuusThralls.summon(p, 10882, 4, 2) })],
-        ["resurrect greater skeleton", new ArceuusSelfSpell({ id: 25510, level: 76, experience: 88, runes: [rune(565, 5), rune(554, 10), rune(564)], effect: (p) => ArceuusThralls.summon(p, 10883, 6, 2) })],
-        ["resurrect lesser zombie", new ArceuusSelfSpell({ id: 25508, level: 38, experience: 55, runes: [rune(558, 5), rune(556, 10), rune(564)], effect: (p) => ArceuusThralls.summon(p, 10884, 2, 3) })],
-        ["resurrect superior zombie", new ArceuusSelfSpell({ id: 25513, level: 57, experience: 70, runes: [rune(560, 5), rune(557, 10), rune(564)], effect: (p) => ArceuusThralls.summon(p, 10885, 4, 3) })],
-        ["resurrect greater zombie", new ArceuusSelfSpell({ id: 25514, level: 76, experience: 88, runes: [rune(565, 5), rune(554, 10), rune(564)], effect: (p) => ArceuusThralls.summon(p, 10886, 6, 3) })],
+        ["resurrect lesser ghost", new ArceuusSelfSpell({ id: 25511, level: 38, experience: 55, runes: [rune(558, 5), rune(556, 10), rune(564)], cooldown: THRALL_COOLDOWN, castDelay: true, effect: (p) => ArceuusThralls.summon(p, 10878, 2, 1, 6) })],
+        ["resurrect superior ghost", new ArceuusSelfSpell({ id: 25506, level: 57, experience: 70, runes: [rune(560, 5), rune(557, 10), rune(564)], cooldown: THRALL_COOLDOWN, castDelay: true, effect: (p) => ArceuusThralls.summon(p, 10879, 4, 2, 6) })],
+        ["resurrect greater ghost", new ArceuusSelfSpell({ id: 25507, level: 76, experience: 88, runes: [rune(565, 5), rune(554, 10), rune(564)], cooldown: THRALL_COOLDOWN, castDelay: true, effect: (p) => ArceuusThralls.summon(p, 10880, 6, 3, 6) })],
+        ["resurrect lesser skeleton", new ArceuusSelfSpell({ id: 25509, level: 38, experience: 55, runes: [rune(558, 5), rune(556, 10), rune(564)], cooldown: THRALL_COOLDOWN, castDelay: true, effect: (p) => ArceuusThralls.summon(p, 10881, 2, 1, 6) })],
+        ["resurrect superior skeleton", new ArceuusSelfSpell({ id: 25512, level: 57, experience: 70, runes: [rune(560, 5), rune(557, 10), rune(564)], cooldown: THRALL_COOLDOWN, castDelay: true, effect: (p) => ArceuusThralls.summon(p, 10882, 4, 2, 6) })],
+        ["resurrect greater skeleton", new ArceuusSelfSpell({ id: 25510, level: 76, experience: 88, runes: [rune(565, 5), rune(554, 10), rune(564)], cooldown: THRALL_COOLDOWN, castDelay: true, effect: (p) => ArceuusThralls.summon(p, 10883, 6, 3, 6) })],
+        ["resurrect lesser zombie", new ArceuusSelfSpell({ id: 25508, level: 38, experience: 55, runes: [rune(558, 5), rune(556, 10), rune(564)], cooldown: THRALL_COOLDOWN, castDelay: true, effect: (p) => ArceuusThralls.summon(p, 10884, 2, 1, 1) })],
+        ["resurrect superior zombie", new ArceuusSelfSpell({ id: 25513, level: 57, experience: 70, runes: [rune(560, 5), rune(557, 10), rune(564)], cooldown: THRALL_COOLDOWN, castDelay: true, effect: (p) => ArceuusThralls.summon(p, 10885, 4, 2, 1) })],
+        ["resurrect greater zombie", new ArceuusSelfSpell({ id: 25514, level: 76, experience: 88, runes: [rune(565, 5), rune(554, 10), rune(564)], cooldown: THRALL_COOLDOWN, castDelay: true, effect: (p) => ArceuusThralls.summon(p, 10886, 6, 3, 1) })],
     ]);
     private static readonly TELEPORTS = new Map<string, ArceuusTeleportSpell>([
-        ["arceuus home teleport", teleport(1, 0, [], 1712, 3882)],
+        ["arceuus home teleport", teleport(1, 0, [], 1712, 3882, 0, { attribute: "magic:homeTeleportUntil", duration: 1_800_000 })],
         ["arceuus library teleport", teleport(6, 9, [rune(557, 2), rune(563)], 1632, 3838)],
         ["draynor manor teleport", teleport(17, 16, [rune(557), rune(555), rune(563)], 3108, 3352)],
         ["battlefront teleport", teleport(23, 19, [rune(557), rune(554), rune(563)], 1348, 3739)],
@@ -158,6 +169,11 @@ export class ArceuusSpells {
             return true;
         }
         const thrallPrayerCost = key.includes("lesser") ? 2 : key.includes("superior") ? 4 : key.includes("greater") ? 6 : 0;
+        if (thrallPrayerCost > 0 && key.startsWith("resurrect ") &&
+            (player.getCombat().getTarget()?.isPlayer() || player.getCombat().getAttacker()?.isPlayer())) {
+            player.getPacketSender().sendMessage("You cannot summon a Thrall during PvP combat.");
+            return true;
+        }
         if (thrallPrayerCost > 0 && key.startsWith("resurrect ") &&
             (!player.getEquipment().contains(25818) || player.getSkillManager().getCurrentLevel(Skill.PRAYER) < thrallPrayerCost)) {
             player.getPacketSender().sendMessage("You need the Book of the dead and enough Prayer points to summon that Thrall.");

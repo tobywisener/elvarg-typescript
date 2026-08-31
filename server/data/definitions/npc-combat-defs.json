@@ -2683,6 +2683,24 @@
         "death": 512
       }
     },
+    "10878": {
+      "name": "null",
+      "anims": {
+        "attack": 1437
+      }
+    },
+    "10879": {
+      "name": "null",
+      "anims": {
+        "attack": 1437
+      }
+    },
+    "10880": {
+      "name": "null",
+      "anims": {
+        "attack": 1437
+      }
+    },
     "11057": {
       "name": "Man",
       "anims": {

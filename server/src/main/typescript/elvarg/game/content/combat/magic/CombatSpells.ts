@@ -103,6 +103,10 @@ class CombatArceuusSpell extends CombatNormalSpell {
         return MagicSpellbook.ARCEUUS;
     }
 
+    public getAttackSpeed(): number {
+        return 4;
+    }
+
     public demonbaneDamageMultiplier(caster: Mobile | null): number {
         return this.demonbane && caster?.isPlayer() && hasArceuusMark(caster) ? 1.25 : 1;
     }
@@ -133,6 +137,10 @@ class CombatArceuusSpell extends CombatNormalSpell {
 class CombatArceuusEffectSpell extends CombatEffectSpell {
     public getSpellbook(): MagicSpellbook {
         return MagicSpellbook.ARCEUUS;
+    }
+
+    public getAttackSpeed(): number {
+        return 4;
     }
 }
 

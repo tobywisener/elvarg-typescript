@@ -4,6 +4,11 @@ import { ParamsMap, Type } from "../Type";
 import { ObjStackability } from "./ObjStackability";
 import { ObjTypeLoader } from "./ObjTypeLoader";
 
+const SPELL_WIDGET_PARAM = 596;
+const SPELL_QUEST_REQUIREMENT_PARAM = 1189;
+const THRALL_SPELL_IDS = new Set([25506, 25507, 25508, 25509, 25510, 25511, 25512, 25513, 25514]);
+const BOOK_OF_THE_DEAD = 25818;
+
 export class ObjType extends Type {
     model?: number;
 
@@ -493,6 +498,26 @@ export class ObjType extends Type {
             return 128;
         }
         return raw;
+    }
+
+    override post(): void {
+        if (this.params?.has(SPELL_WIDGET_PARAM)) {
+            this.params.delete(SPELL_QUEST_REQUIREMENT_PARAM);
+        }
+        if (this.params && THRALL_SPELL_IDS.has(this.id)) {
+            const thirdRune = this.params.get(369);
+            const thirdRuneAmount = this.params.get(370);
+            if (typeof thirdRune === "number" && typeof thirdRuneAmount === "number") {
+                this.params.set(606, thirdRune);
+                this.params.set(607, thirdRuneAmount);
+                this.params.set(369, this.params.get(367)!);
+                this.params.set(370, this.params.get(368)!);
+                this.params.set(367, this.params.get(365)!);
+                this.params.set(368, this.params.get(366)!);
+                this.params.set(365, BOOK_OF_THE_DEAD);
+                this.params.set(366, 1);
+            }
+        }
     }
 
     genCert(template: ObjType, original: ObjType): void {
