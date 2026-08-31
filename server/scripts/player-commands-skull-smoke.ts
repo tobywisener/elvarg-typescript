@@ -135,7 +135,7 @@ const staff = {
 worldPlayers.push({ getPacketSender: () => sender });
 sent.messages.length = 0;
 yellCommand({ player: staff, raw: "yell hello" });
-assert.equal(sent.messages[sent.messages.length - 1], "<col=ff0000>[Developer] <img=1> Developer: hello</col>");
+assert.equal(sent.messages[sent.messages.length - 1], "<col=7f0000>[Developer] <img=1> Developer: hello</col>");
 
 const originalNow = Date.now;
 let now = originalNow();

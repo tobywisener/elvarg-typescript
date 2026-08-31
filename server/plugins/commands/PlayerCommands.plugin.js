@@ -312,7 +312,7 @@ module.exports = {
         .map((icon) => `<img=${icon}>`)
         .join("");
       const prefix = yellPrefix(player);
-      const yell = `<col=ff0000>${prefix} ${sprite} ${player.getUsername()}: ${yellMessage}</col>`.trim();
+      const yell = `<col=7f0000>${prefix} ${sprite} ${player.getUsername()}: ${yellMessage}</col>`.trim();
       World.getPlayers().forEach((p) => p?.getPacketSender()?.sendMessage(yell));
 
       const delaySeconds = yellDelaySeconds(player);
