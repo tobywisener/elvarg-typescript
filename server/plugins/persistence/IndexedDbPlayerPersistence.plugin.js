@@ -1,3 +1,4 @@
+const path = require("path");
 const { JsonPlayerPersistence } = require("./JsonPlayerPersistence.plugin");
 const {
   HANDOFF_DIRECTORY,
@@ -10,7 +11,7 @@ const {
  */
 class IndexedDbPlayerPersistence extends JsonPlayerPersistence {
   static HANDOFF_DIRECTORY = HANDOFF_DIRECTORY;
-  static SAVE_DIRECTORY = require("path").join(process.cwd(), HANDOFF_DIRECTORY);
+  static SAVE_DIRECTORY = path.join(process.cwd(), HANDOFF_DIRECTORY);
 
   resolveFilePath(username) {
     return path.join(
