@@ -1,0 +1,73 @@
+diff --git a/client/game/widgets/input/widgetKeyboardInput.ts b/client/game/widgets/input/widgetKeyboardInput.ts
+index 553e91e..22a6644 100644
+--- a/client/game/widgets/input/widgetKeyboardInput.ts
++++ b/client/game/widgets/input/widgetKeyboardInput.ts
+@@ -1,6 +1,7 @@
+ import { chatHistory } from "../../../rs/cs2/ChatHistory";
+ import type { ScriptEvent } from "../../../rs/cs2/Cs2Vm";
+ import { collectWidgetsWithKeyHandlers } from "../../../widgets/menu/utils";
++import { sendInterfaceCloseKey } from "../../../network/serverConnection/outgoing/widgets";
+ import type { WidgetInputControllerDeps, WidgetInputFrame } from "./widgetInputTypes";
+ import type { WidgetInteractionController } from "../WidgetInteractionController";
+ import type { WidgetManager } from "../../../widgets/WidgetManager";
+@@ -114,6 +115,18 @@ export function processWidgetKeyboardInput(
+             return;
+         }
+ 
++        for (const keyEvent of input.keyEvents) {
++            const OSRS_KEY_ESCAPE = 13;
++            if (keyEvent.keyTyped === OSRS_KEY_ESCAPE) {
++                // Server decides what Escape actually does (close a dialogue,
++                // close a modal interface, or open the logout tab) based on
++                // its own tracked state - see Player.closeInterruptibleInterfaces()
++                // and the "interface_close" case in NetworkBuilder.ts.
++                sendInterfaceCloseKey();
++                return;
++            }
++        }
++
+         // Collect ALL widgets with onKey handlers from all roots.
+         // Note: some widget trees can reference the same widget via multiple traversal paths
+         // (e.g., legacy IF1 `children` plus parentUid-indexed children), so de-duplicate by uid.
+diff --git a/client/network/serverConnection/outgoing/widgets.ts b/client/network/serverConnection/outgoing/widgets.ts
+index 69d6ded..18e6c99 100644
+--- a/client/network/serverConnection/outgoing/widgets.ts
++++ b/client/network/serverConnection/outgoing/widgets.ts
+@@ -15,6 +15,11 @@ export function sendWidgetClose(groupId: number): void {
+     send({ type: "widget", payload: { action: "close", groupId: groupId | 0 } } as any);
+ }
+ 
++export function sendInterfaceCloseKey(): void {
++    if (!state.socket || state.socket.readyState !== WebSocket.OPEN) return;
++    send({ type: "interface_close" } as any);
++}
++
+ function normalizeWidgetActionPayload(
+     payload: WidgetActionClientPayload,
+ ): WidgetActionClientPayload | undefined {
+diff --git a/server/src/main/typescript/elvarg/net/NetworkBuilder.ts b/server/src/main/typescript/elvarg/net/NetworkBuilder.ts
+index 3d15434..7b23c7e 100644
+--- a/server/src/main/typescript/elvarg/net/NetworkBuilder.ts
++++ b/server/src/main/typescript/elvarg/net/NetworkBuilder.ts
+@@ -510,7 +510,20 @@ class ClientConnection {
+           );
+           continue;
+         case "interface_close":
+-          this.player?.closeInterruptibleInterfaces();
++          if (this.player) {
++            const hadSomethingOpen =
++              this.player.getStatus() !== PlayerStatus.NONE ||
++              this.player.getInterfaceId() >= 0 ||
++              this.player.getDialogueManager().isActive() ||
++              this.player.getPacketSender().hasInterruptibleInterface();
++            if (hadSomethingOpen) {
++              this.player.closeInterruptibleInterfaces();
++            } else {
++              // Nothing was open - real OSRS opens the logout tab here.
++              // TODO: needs the exact tab-switch mechanism confirmed against
++              // a live click of the logout icon before wiring this branch.
++            }
++          }
+           continue;
+         case "local_trigger":
+           if (this.player && packet.opcodeParam >= 1 && packet.opcodeParam <= 10) {

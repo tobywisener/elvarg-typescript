@@ -1,6 +1,7 @@
 import { chatHistory } from "../../../rs/cs2/ChatHistory";
 import type { ScriptEvent } from "../../../rs/cs2/Cs2Vm";
 import { collectWidgetsWithKeyHandlers } from "../../../widgets/menu/utils";
+import { ClientPacket, createPacket, queuePacket } from "../../../network/packet";
 import type { WidgetInputControllerDeps, WidgetInputFrame } from "./widgetInputTypes";
 import type { WidgetInteractionController } from "../WidgetInteractionController";
 import type { WidgetManager } from "../../../widgets/WidgetManager";
@@ -16,7 +17,7 @@ export function processWidgetKeyboardInput(
         // Type 0 = no dialog, Type 1 = default, Type 2 = interface-scoped, Type 3 = widget-scoped
         const dialogActive = deps.getCs2Vm().inputDialogType > 0;
         const customInterfaceSearchHandled =
-            !dialogActive && deps.getCustomInterfaces().handleSearchKeyEvents(input.keyEvents);
+        !dialogActive && deps.getCustomInterfaces().handleSearchKeyEvents(input.keyEvents);
 
         // Process keyboard input for active dialog before widget handlers
         if (dialogActive) {
@@ -112,6 +113,21 @@ export function processWidgetKeyboardInput(
 
         if (customInterfaceSearchHandled) {
             return;
+        }
+
+        for (const keyEvent of input.keyEvents) {
+            const OSRS_KEY_ESCAPE = 13;
+            if (keyEvent.keyTyped === OSRS_KEY_ESCAPE) {
+                // Same IF_CLOSE packet MenuAction.ts already sends for
+                // MenuOpcode.WidgetClose (verified against
+                // ClientBinaryEncoder.ts/ClientProtocol.ts - IF_CLOSE = 55,
+                // 0-byte payload, decodes server-side to {type:
+                // "interface_close"}, handled in NetworkBuilder.ts via
+                // Player.closeInterruptibleInterfaces()).
+                const pkt = createPacket(ClientPacket.IF_CLOSE);
+                queuePacket(pkt);
+                return;
+            }
         }
 
         // Collect ALL widgets with onKey handlers from all roots.

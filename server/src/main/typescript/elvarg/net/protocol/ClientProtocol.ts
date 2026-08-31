@@ -1419,6 +1419,34 @@ export const MAIN_INVENTORY_GROUP_ID = 149;
 export const MAIN_INVENTORY_WIDGET_UID = MAIN_INVENTORY_GROUP_ID << 16;
 export const MAIN_INVENTORY_SLOT_FLAGS = 0x1207fe;
 
+// Side journal (quest tab) content mount, mirrored from client/common/ui/sideJournal.ts.
+// The [78, 629] mount below only opens the side_journal *shell* into the root
+// interface; nothing then mounts default content into the shell's own inner
+// container (629:43), and the tab icon (root:61) never gets the transmit
+// flags its right-click submenu (Character Summary/Quest List/Achievement
+// Diaries) needs, so those clicks are silently dropped by the client. Both
+// live here (rather than only in a plugin hook) because this function runs
+// on every gameframe bootstrap - both the raw post-login call below and the
+// second call WelcomeScreen.plugin.js makes after the "Play" button is
+// clicked - and either path must leave the quest tab in a working state.
+const SIDE_JOURNAL_GROUP_ID = 629;
+const SIDE_JOURNAL_TAB_CONTAINER_CHILD_ID = 43;
+const INTERFACE_CHARACTER_SUMMARY_ID = 712;
+const QUEST_TAB_ICON_CHILD_ID = 61;
+// Mirrors client/widgets/WidgetFlags.ts: op1 (default, already implied) | op2/op3/op4
+// (Character Summary / Quest List / Achievement Diaries submenu entries).
+const QUEST_TAB_ICON_FLAGS = (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4);
+
+// Account summary (712) dynamic row list, mirrored from client/common/ui/accountSummary.ts.
+// Rows are CC_CREATE'd under 712:3 at runtime, so a plain widget dump only shows
+// the static shell (children 0-3) - these indices come from live click logs.
+const ACCOUNT_SUMMARY_ENTRY_LIST_UID = (INTERFACE_CHARACTER_SUMMARY_ID << 16) | 3;
+const ACCOUNT_SUMMARY_QUESTS_ROW = 3; // op1 "Quest List"
+const ACCOUNT_SUMMARY_ACHIEVEMENTS_ROW = 4; // op1 "Achievement Diaries"
+const ACCOUNT_SUMMARY_COMBAT_TASKS_ROW = 5; // op1-4 Overview/Bosses/Tasks/Rewards (Combat Achievements - not yet built)
+const ACCOUNT_SUMMARY_COLLECTION_LOG_ROW = 6; // op1 "Collection Log", op2 "Collection Overview"
+const ACCOUNT_SUMMARY_PLAYTIME_ROW = 7; // op1 "Reveal"
+
 export function encodeGameframeBootstrap(playerName: string): Buffer[] {
   const root = 161;
   const mounts = [
@@ -1438,6 +1466,12 @@ export function encodeGameframeBootstrap(playerName: string): Buffer[] {
     packet(ServerPacket.WIDGET_SET_ROOT, rootPayload, 0),
     ...mounts.map(([child, group, postScript]) => encodeOpenSub(root, child, group, postScript)),
     encodeWidgetSetFlagsRange(MAIN_INVENTORY_WIDGET_UID, 0, 27, MAIN_INVENTORY_SLOT_FLAGS),
+    encodeOpenSub(SIDE_JOURNAL_GROUP_ID, SIDE_JOURNAL_TAB_CONTAINER_CHILD_ID, INTERFACE_CHARACTER_SUMMARY_ID),
+    encodeWidgetSetFlags((root << 16) | QUEST_TAB_ICON_CHILD_ID, QUEST_TAB_ICON_FLAGS),
+    encodeWidgetSetFlagsRange(ACCOUNT_SUMMARY_ENTRY_LIST_UID, ACCOUNT_SUMMARY_QUESTS_ROW, ACCOUNT_SUMMARY_ACHIEVEMENTS_ROW, 1 << 1),
+    encodeWidgetSetFlagsRange(ACCOUNT_SUMMARY_ENTRY_LIST_UID, ACCOUNT_SUMMARY_COMBAT_TASKS_ROW, ACCOUNT_SUMMARY_COMBAT_TASKS_ROW, (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4)),
+    encodeWidgetSetFlagsRange(ACCOUNT_SUMMARY_ENTRY_LIST_UID, ACCOUNT_SUMMARY_COLLECTION_LOG_ROW, ACCOUNT_SUMMARY_COLLECTION_LOG_ROW, (1 << 1) | (1 << 2)),
+    encodeWidgetSetFlagsRange(ACCOUNT_SUMMARY_ENTRY_LIST_UID, ACCOUNT_SUMMARY_PLAYTIME_ROW, ACCOUNT_SUMMARY_PLAYTIME_ROW, 1 << 1),
     packet(ServerPacket.WIDGET_RUN_SCRIPT, loginScript, 2),
   ];
 }

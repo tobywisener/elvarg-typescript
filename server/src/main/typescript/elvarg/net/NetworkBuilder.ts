@@ -525,7 +525,20 @@ class ClientConnection {
           );
           continue;
         case "interface_close":
-          this.player?.closeInterruptibleInterfaces();
+          if (this.player) {
+            const hadSomethingOpen =
+              this.player.getStatus() !== PlayerStatus.NONE ||
+              this.player.getInterfaceId() >= 0 ||
+              this.player.getDialogueManager().isActive() ||
+              this.player.getPacketSender().hasInterruptibleInterface();
+            if (hadSomethingOpen) {
+              this.player.closeInterruptibleInterfaces();
+            } else {
+              // Nothing was open - real OSRS opens the logout tab here.
+              // TODO: needs the exact tab-switch mechanism confirmed against
+              // a live click of the logout icon before wiring this branch.
+            }
+          }
           continue;
         case "local_trigger":
           if (this.player && packet.opcodeParam >= 1 && packet.opcodeParam <= 10) {
