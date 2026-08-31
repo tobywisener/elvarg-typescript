@@ -2,6 +2,7 @@ const fs = require("fs");
 const fsp = fs.promises;
 const path = require("path");
 const { promisify } = require("util");
+const { isBrowserHost } = require("./IndexedDbPersistenceHandoff");
 const { PrayerData } = require("../../src/main/typescript/elvarg/game/content/PrayerHandler");
 const { FightType } = require("../../src/main/typescript/elvarg/game/content/combat/FightType");
 const { Skills } = require("../../src/main/typescript/elvarg/game/content/skill/SkillManager");
@@ -755,9 +756,13 @@ module.exports = {
   name: "JsonPlayerPersistence",
   register(api) {
     SkillManager = api.getSkillManager();
+    if (isBrowserHost()) {
+      return;
+    }
     api.setPlayerPersistence(new JsonPlayerPersistence());
     api.log("registered", {
       saveDirectory: path.join("data", "saves", "characters"),
     });
   },
+  JsonPlayerPersistence,
 };
