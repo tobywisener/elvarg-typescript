@@ -15,6 +15,7 @@ const TYPE_LAYER = 0;
 const TYPE_RECTANGLE = 3;
 const TYPE_TEXT = 4;
 const TYPE_GRAPHIC = 5;
+const TYPE_MODEL = 6;
 
 function createWidgetGroup(groupId) {
   const widgets = [];
@@ -74,5 +75,6 @@ module.exports = {
   TYPE_RECTANGLE,
   TYPE_TEXT,
   TYPE_GRAPHIC,
+  TYPE_MODEL,
   createWidgetGroup,
 };

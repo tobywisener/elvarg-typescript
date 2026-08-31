@@ -8,22 +8,23 @@ import { Wilderness } from "../../../game/content/wilderness/Wilderness";
 import { PluginManager } from "../../../plugins/PluginManager";
 import { PluginItemDropEvent } from "../../../plugins/PluginTypes";
 
+const DESTROY_ITEM_INTERFACE_ID = 584;
+const DESTROY_ITEM_NAME_COMPONENT =
+  (DESTROY_ITEM_INTERFACE_ID << 16) | 6;
+const DESTROY_ITEM_YES_COMPONENT =
+  (DESTROY_ITEM_INTERFACE_ID << 16) | 1;
+const DESTROY_ITEM_NO_COMPONENT =
+  (DESTROY_ITEM_INTERFACE_ID << 16) | 3;
+const FIRST_OPTION_FLAG = 1 << 1;
+
 export class DropItemPacketListener {
   public static destroyItemInterface(player: any, item: any) {
     player.setDestroyItem(item.getId());
-    let info: { [key: string]: string }[] = [
-      { "Are you sure you want to discard this item?": "14174" },
-      { "Yes.": "14175" },
-      { "No.": "14176" },
-      { "": "14177" },
-      { "This item will vanish once it hits the floor.": "14182" },
-      { "You cannot get it back if discarded.": "14183" },
-      { [item.getDefinition().getName()]: "14184" },
-    ];
-    player.getPacketSender().sendItemOnInterface(14171, item.getId(), 0, item.getAmount());
-    for (let i = 0; i < info.length; i++)
-      player.getPacketSender().sendString(info[i][0], parseInt(info[i][1]));
-    player.getPacketSender().sendChatboxInterface(14170);
+    player.getPacketSender()
+      .sendChatboxInterface(DESTROY_ITEM_INTERFACE_ID)
+      .sendString(item.getDefinition().getName(), DESTROY_ITEM_NAME_COMPONENT)
+      .sendInterfaceFlags(DESTROY_ITEM_YES_COMPONENT, FIRST_OPTION_FLAG)
+      .sendInterfaceFlags(DESTROY_ITEM_NO_COMPONENT, FIRST_OPTION_FLAG);
   }
 
   public static drop(player: any, id: number, interfaceId: number, itemSlot: number): void {
