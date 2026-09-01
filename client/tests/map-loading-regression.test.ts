@@ -30,6 +30,29 @@ function mapLoadBackoff(): void {
     }
 }
 
+function incomingMapsRenderBeforeTheWholeGridIsReady(): void {
+    const manager = new MapManager(1, () => {});
+    const camera = { getPosX: () => 3232, getPosZ: () => 3232 } as any;
+    const map = (mapX: number, mapY: number) => ({
+        mapX,
+        mapY,
+        canRender: () => true,
+        delete: () => {},
+    });
+
+    manager.update(3232, 3232, camera, 0, 1, 3200, 3200);
+    for (const mapId of manager.getGridMapIdsSnapshot()) {
+        manager.addMap(mapId >> 8, mapId & 0xff, map(mapId >> 8, mapId & 0xff));
+    }
+    manager.update(3232, 3232, camera, 1, 1, 3200, 3200);
+
+    manager.update(3296, 3232, camera, 2, 1, 3264, 3200);
+    manager.addMap(52, 50, map(52, 50));
+    manager.update(3296, 3232, camera, 3, 1, 3264, 3200);
+
+    assert.ok(manager.visibleMaps.some((entry) => entry.mapX === 52 && entry.mapY === 50));
+}
+
 function duplicateLocReplayIsIgnored(): void {
     let refreshes = 0;
     const host = {
@@ -97,6 +120,7 @@ function regionReplacementUsesNativeMapData(): void {
 }
 
 mapLoadBackoff();
+incomingMapsRenderBeforeTheWholeGridIsReady();
 duplicateLocReplayIsIgnored();
 crossShapeReplacementKeepsBaseWallHidden();
 regionReplacementUsesNativeMapData();

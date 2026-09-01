@@ -470,6 +470,14 @@ export class MapManager<T extends MapSquare> {
         for (let i = 0; i < this.activeGridMapCount; i++) {
             this.transitionRenderMapIds.push(this.activeGridMapIds[i]);
         }
+        if (this.gridTransitionPending) {
+            for (let i = 0; i < this.gridMapCount; i++) {
+                const mapId = this.gridMapIds[i];
+                if (!this.activeGridMapIdSet.has(mapId)) {
+                    this.transitionRenderMapIds.push(mapId);
+                }
+            }
+        }
 
         this.transitionRenderMapIds.sort(
             (a, b) =>

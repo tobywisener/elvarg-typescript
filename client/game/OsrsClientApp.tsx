@@ -184,11 +184,12 @@ function OsrsClientApp() {
         setClientPreference("iosInstallHintDismissed", true);
     }, []);
 
-    // Two workers build maps in parallel — halves total grid load time.
-    // Progressive rendering shows each map as it arrives, no main-thread freeze.
+    // A normal scene spans up to four map squares, so desktop can build one
+    // complete scene window in a single worker wave without taking every core.
     const workerPoolNonce = readWorkerPoolNonce();
     const workerCount = useMemo(() => {
-        return 2;
+        const cores = navigator.hardwareConcurrency || 2;
+        return checkMobile() || isIos ? 2 : Math.max(2, Math.min(4, cores - 1));
     }, []);
 
     const workerPool = useMemo(() => {
