@@ -138,6 +138,20 @@ async function main(): Promise<void> {
         textureMaterials: {},
     };
     const playerRenderer = new PlayerRenderer(renderer as any) as any;
+    const previousAppearance = { id: "previous" };
+    const nextAppearance = { id: "next" };
+    let nextAppearanceReady = true;
+    playerRenderer.ensureBaseForAppearance = (appearance: object) =>
+        appearance === nextAppearance && !nextAppearanceReady ? undefined : {};
+    assert.equal(playerRenderer.resolveRenderableAppearance(1, previousAppearance), previousAppearance);
+    nextAppearanceReady = false;
+    assert.equal(
+        playerRenderer.resolveRenderableAppearance(1, nextAppearance),
+        previousAppearance,
+        "keep the completed model visible while new equipment models load",
+    );
+    nextAppearanceReady = true;
+    assert.equal(playerRenderer.resolveRenderableAppearance(1, nextAppearance), nextAppearance);
     playerRenderer.geomCache.set("frame:0", {
         verts: new Uint8Array(24),
         inds: new Int32Array(6),

@@ -293,6 +293,7 @@ export class PlayerRenderer {
         string,
         { baseModel: any; baseCenterX: number; baseCenterZ: number; defaultHeightTiles: number }
     > = new Map();
+    private lastRenderableAppearance = new Map<number, PlayerAppearance>();
 
     // Clean up cache entries for a deallocated player appearance
     cleanupAppearanceCache(appearanceHash?: string): void {
@@ -313,6 +314,7 @@ export class PlayerRenderer {
             return;
         }
         this.appearanceBaseCache.clear();
+        this.lastRenderableAppearance.clear();
         this.geomCache.clear();
         this.clearPlayerGpuGeometryCache();
     }
@@ -387,6 +389,17 @@ export class PlayerRenderer {
             app.getEquipKey?.() ??
             (Array.isArray(app.equip) ? app.equip.slice(0, 14).join(",") : "");
         return app.getCacheKey?.() ?? `${app.getHash?.().toString() ?? "0"}|${equipKey}`;
+    }
+
+    private resolveRenderableAppearance(
+        serverId: number,
+        appearance: PlayerAppearance,
+    ): PlayerAppearance | undefined {
+        if (this.ensureBaseForAppearance(appearance)) {
+            this.lastRenderableAppearance.set(serverId, appearance);
+            return appearance;
+        }
+        return this.lastRenderableAppearance.get(serverId);
     }
 
     private getPlayerGpuGeometry(ownerKey: string, geometryKey: string): PlayerGpuGeometry | undefined {
@@ -2050,6 +2063,11 @@ export class PlayerRenderer {
                     }
                 } catch {}
             }
+            const serverId = peInst.getServerIdForIndex(pid);
+            if (serverId === undefined) continue;
+            const renderableAppearance = this.resolveRenderableAppearance(serverId, effectiveApp);
+            if (!renderableAppearance) continue;
+            effectiveApp = renderableAppearance;
 
             // Create batch key from appearance hash, sequence ID, and frame index
             const appKey =
@@ -2383,6 +2401,11 @@ export class PlayerRenderer {
                         }
                     } catch {}
                 }
+                const serverId = peInst.getServerIdForIndex(pid);
+                if (serverId === undefined) continue;
+                const renderableAppearance = this.resolveRenderableAppearance(serverId, effectiveApp);
+                if (!renderableAppearance) continue;
+                effectiveApp = renderableAppearance;
 
                 // Create batch key
                 const appKey =
