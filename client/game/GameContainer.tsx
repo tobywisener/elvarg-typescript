@@ -12,6 +12,7 @@ import { DebugControls } from "./DebugControls";
 import "./GameContainer.css";
 import { GameRenderer } from "./GameRenderer";
 import { OsrsClient } from "./OsrsClient";
+import { SplitPrivateChatOverlay } from "./plugins/splitprivatechat/SplitPrivateChatOverlay";
 import { VengeanceTimerOverlay } from "./plugins/vengeancetimer/VengeanceTimerOverlay";
 import { SidebarShell } from "./sidebar/SidebarShell";
 
@@ -366,6 +367,8 @@ export function GameContainer({ osrsClient }: OsrsContainerProps): JSX.Element {
                         {loadingBarOverlay}
 
                         {!hideUi && <VengeanceTimerOverlay osrsClient={osrsClient} />}
+
+                        {!hideUi && <SplitPrivateChatOverlay osrsClient={osrsClient} />}
 
                         <div className="hud right-top">
                             <div className="fps-counter content-text">{fps}</div>

@@ -323,9 +323,18 @@ class ClientConnection {
           }
           continue;
         case "chat":
-          if (this.player && packet.messageType === "public") {
-            ChatPacketListener.handleText(this.player, packet.text);
+          if (this.player) {
+            if (packet.messageType === "public") {
+              ChatPacketListener.handleText(this.player, packet.text);
+            } else if (packet.messageType === "friends_chat") {
+              PluginManager.emitSocialPacket({ player: this.player, packet, handled: false });
+            }
           }
+          continue;
+        case "friends_chat_action":
+        case "private_message":
+        case "chat_filter":
+          if (this.player) PluginManager.emitSocialPacket({ player: this.player, packet, handled: false });
           continue;
         case "dialogue_continue": {
           // Skillmulti item clicks (smelting, creation menus, ...) route through this packet

@@ -75,6 +75,7 @@ import {
   PluginNpcCombatMethodProvider,
   PluginNpcCombatMethodProviderEntry,
   PluginPlayerLogoutEvent,
+  PluginSocialPacketEvent,
 } from "./PluginTypes";
 
 type PluginHook<T> = {
@@ -113,6 +114,7 @@ export class PluginManager {
   private static loginHooks: PluginHook<PluginPlayerLoginEvent>[] = [];
   private static disconnectHooks: PluginHook<PluginPlayerDisconnectEvent>[] = [];
   private static logoutHooks: PluginHook<PluginPlayerLogoutEvent>[] = [];
+  private static socialPacketHooks: PluginHook<PluginSocialPacketEvent>[] = [];
   private static serverStartupHooks: PluginHook<PluginServerLifecycleEvent>[] = [];
   private static serverShutdownHooks: PluginHook<PluginServerLifecycleEvent>[] = [];
   private static friendAddHooks: PluginHook<PluginFriendEvent>[] = [];
@@ -481,6 +483,15 @@ export class PluginManager {
     for (const hook of PluginManager.logoutHooks) {
       PluginManager.executeHook(hook, event, "logout", "player_logout");
     }
+  }
+
+  public static emitSocialPacket(event: PluginSocialPacketEvent): boolean {
+    if (!event?.player || event.handled) return false;
+    for (const hook of PluginManager.socialPacketHooks) {
+      if (event.handled) break;
+      PluginManager.executeHook(hook, event, "social_packet", "social_packet");
+    }
+    return event.handled;
   }
 
   public static emitServerStartup(event: PluginServerLifecycleEvent): void {
@@ -1750,6 +1761,20 @@ export class PluginManager {
           pluginName,
           handler: (event) => {
             if (!event || !event.player || !event.username) {
+              return;
+            }
+            handler(event);
+          },
+        });
+      },
+      onSocialPacket: (handler) => {
+        if (typeof handler !== "function") {
+          return;
+        }
+        PluginManager.socialPacketHooks.push({
+          pluginName,
+          handler: (event) => {
+            if (!event || event.handled || !event.player || !event.packet) {
               return;
             }
             handler(event);

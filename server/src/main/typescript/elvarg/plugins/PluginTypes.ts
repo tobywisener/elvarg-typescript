@@ -3,6 +3,7 @@ import type { PlayerPersistence } from "../game/entity/impl/player/persistence/P
 import type { ActiveRegionSnapshot } from "../game/ActiveRegionIndex";
 import type { ServerDataProvider } from "../game/data/ServerDataRegistry";
 import type { DefinitionSource } from "../game/definition/loader/DefinitionLoader";
+import type { FriendsChatAction } from "../net/protocol/ClientProtocol";
 
 export interface PluginPlayerLoginEvent {
   player: any;
@@ -19,6 +20,16 @@ export interface PluginPlayerLogoutEvent {
   player: any;
   username: string;
 }
+
+export type PluginSocialPacketEvent = {
+  player: any;
+  handled: boolean;
+  packet:
+    | { type: "friends_chat_action"; action: FriendsChatAction }
+    | { type: "private_message"; recipient: string; text: string }
+    | { type: "chat_filter"; publicMode: number; privateMode: number; tradeMode: number }
+    | { type: "chat"; text: string; messageType: "friends_chat" };
+};
 
 export interface PluginServerLifecycleEvent {
   timestamp: number;
@@ -474,6 +485,7 @@ export interface PluginApi {
   onPlayerLogin(handler: (event: PluginPlayerLoginEvent) => void): void;
   onPlayerDisconnect(handler: (event: PluginPlayerDisconnectEvent) => void): void;
   onPlayerLogout(handler: (event: PluginPlayerLogoutEvent) => void): void;
+  onSocialPacket(handler: (event: PluginSocialPacketEvent) => void): void;
   onServerStartup(handler: (event: PluginServerLifecycleEvent) => void): void;
   onServerShutdown(handler: (event: PluginServerLifecycleEvent) => void): void;
   onFriendAdd(handler: (event: PluginFriendEvent) => void): void;

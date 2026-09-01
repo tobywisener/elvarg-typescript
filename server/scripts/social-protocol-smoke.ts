@@ -11,6 +11,54 @@ import { PlayerRelations } from "../src/main/typescript/elvarg/game/model/Player
 import { World } from "../src/main/typescript/elvarg/game/World";
 import { Misc } from "../src/main/typescript/elvarg/util/Misc";
 
+const friendsListPlugin = require("../plugins/interface/FriendsList.plugin.js");
+const socialHooks: Record<string, (event: any) => void> = {};
+friendsListPlugin.register({
+  onPlayerLogin: (handler: (event: any) => void) => { socialHooks.login = handler; },
+  onPlayerLogout: (handler: (event: any) => void) => { socialHooks.logout = handler; },
+  onSocialPacket: (handler: (event: any) => void) => { socialHooks.packet = handler; },
+  onInterfaceActionClick: (handler: (event: any) => void) => { socialHooks.interface = handler; },
+});
+
+const originalSocialHandlers = {
+  onLogin: FriendsChatManager.onLogin,
+  onLogout: FriendsChatManager.onLogout,
+  handleAction: FriendsChatManager.handleAction,
+  handlePrivateMessage: FriendsChatManager.handlePrivateMessage,
+  setChatFilters: FriendsChatManager.setChatFilters,
+  handleChat: FriendsChatManager.handleChat,
+  handleWidgetAction: FriendsChatManager.handleWidgetAction,
+};
+const socialCalls: string[] = [];
+try {
+  (FriendsChatManager as any).onLogin = () => socialCalls.push("login");
+  (FriendsChatManager as any).onLogout = () => socialCalls.push("logout");
+  (FriendsChatManager as any).handleAction = () => socialCalls.push("action");
+  (FriendsChatManager as any).handlePrivateMessage = () => socialCalls.push("private");
+  (FriendsChatManager as any).setChatFilters = () => socialCalls.push("filter");
+  (FriendsChatManager as any).handleChat = () => socialCalls.push("chat");
+  (FriendsChatManager as any).handleWidgetAction = () => true;
+  const player = {};
+  socialHooks.login({ player });
+  socialHooks.logout({ player });
+  for (const packet of [
+    { type: "friends_chat_action", action: { action: "add_friend", name: "Alice" } },
+    { type: "private_message", recipient: "Alice", text: "Hello" },
+    { type: "chat_filter", publicMode: 0, privateMode: 1, tradeMode: 2 },
+    { type: "chat", messageType: "friends_chat", text: "Hello channel" },
+  ] as const) {
+    const event: any = { player, packet, handled: false };
+    socialHooks.packet(event);
+    assert.strictEqual(event.handled, true);
+  }
+  const interfaceEvent: any = { player, groupId: 7, childId: 20, action: 1, handled: false };
+  socialHooks.interface(interfaceEvent);
+  assert.strictEqual(interfaceEvent.handled, true);
+  assert.deepStrictEqual(socialCalls, ["login", "logout", "action", "private", "filter", "chat"]);
+} finally {
+  Object.assign(FriendsChatManager, originalSocialHandlers);
+}
+
 function variableBytePacket(opcode: number, body: Buffer): Buffer {
   return Buffer.concat([Buffer.from([opcode, body.length]), body]);
 }
@@ -171,6 +219,24 @@ assert.deepStrictEqual(
   ]))),
   { type: "friends_chat_action", action: { action: "add_friend", name: "Alice" } },
 );
+
+for (const [actionCode, action] of [
+  [0, "join"],
+  [1, "leave"],
+  [2, "kick"],
+  [4, "remove_friend"],
+  [6, "add_ignore"],
+  [7, "remove_ignore"],
+] as const) {
+  assert.deepStrictEqual(
+    decodeClientPacket(variableBytePacket(196, Buffer.concat([
+      Buffer.from([actionCode]),
+      Buffer.from("Alice\0", "latin1"),
+      Buffer.from([0]),
+    ]))),
+    { type: "friends_chat_action", action: action === "leave" ? { action } : { action, name: "Alice" } },
+  );
+}
 
 assert.deepStrictEqual(
   decodeClientPacket(variableBytePacket(196, Buffer.concat([

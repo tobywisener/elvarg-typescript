@@ -268,6 +268,10 @@ import { createBrowserTileMarkersPluginPersistence } from "./plugins/tilemarkers
 import { TileMarkersPlugin } from "./plugins/tilemarkers/TileMarkersPlugin";
 import { createBrowserVengeanceTimerPluginPersistence } from "./plugins/vengeancetimer/BrowserVengeanceTimerPluginPersistence";
 import { VengeanceTimerPlugin } from "./plugins/vengeancetimer/VengeanceTimerPlugin";
+import {
+    SPLIT_PRIVATE_CHAT_VARP,
+    SplitPrivateChatPlugin,
+} from "./plugins/splitprivatechat/SplitPrivateChatPlugin";
 import { ResolveTilePlaneFn } from "./scene/PlaneResolver";
 import {
     createSelectedSpellOnGroundItemPacket,
@@ -501,6 +505,7 @@ export class OsrsClient {
     readonly rememberLoginPlugin: RememberLoginPlugin;
     readonly tileMarkersPlugin: TileMarkersPlugin;
     readonly vengeanceTimerPlugin: VengeanceTimerPlugin;
+    readonly splitPrivateChatPlugin: SplitPrivateChatPlugin;
     readonly tileHighlightManager: TileHighlightManager = new TileHighlightManager();
     private sidebarPluginVisibility: Required<SidebarPluginVisibilityOptions> = {
         groundItemsEnabled: true,
@@ -1042,6 +1047,7 @@ export class OsrsClient {
         this.vengeanceTimerPlugin = new VengeanceTimerPlugin(
             createBrowserVengeanceTimerPluginPersistence("osrs.plugin.vengeance_timer.v1"),
         );
+        this.splitPrivateChatPlugin = new SplitPrivateChatPlugin();
         this.syncSidebarPlugins(true);
         this.groundItemsPlugin.subscribe(() => {
             this.syncSidebarPlugins();
@@ -2840,6 +2846,9 @@ export class OsrsClient {
         // Subscribe to chat messages to add to history and mark chatCycle for transmit
         try {
             this.unsubscribeChatMessages = subscribeChatMessages((msg) => {
+                if (this.varManager?.getVarp(SPLIT_PRIVATE_CHAT_VARP) === 1) {
+                    this.splitPrivateChatPlugin.addMessage(msg);
+                }
                 // Add message to chat history for CS2 scripts to query
                 const isTradeRequest = msg.chatType === ChatMessageType.TRADE_REQUEST;
                 if (isTradeRequest && msg.from && msg.playerId !== undefined) {
@@ -7693,6 +7702,7 @@ export class OsrsClient {
             } catch (err) {
                 console.warn("[OsrsClient] ChatHistory clear error:", err);
             }
+            this.splitPrivateChatPlugin.clear();
 
             // Clear transient varcs while keeping persistent client preferences loaded.
             // Camera zoom bounds are reseeded by the login root bootstrap script.

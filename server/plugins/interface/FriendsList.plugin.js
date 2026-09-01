@@ -1,23 +1,40 @@
-// Add/remove friend and send-PM are client-protocol-blocked - xrsps-typescript's
-// client has no way to send these actions at all (no message type exists for
-// them). See docs/networking-protocol-gaps.md. The handlers used to be wired up
-// via the dead registerAlivePacketListener/PACKETS dispatch, which never actually
-// ran once elvarg switched to NetworkBuilder.ts's live dispatch; removed along
-// with the rest of that dead system.
+const { FriendsChatManager } = require("../../src/main/typescript/elvarg/game/content/FriendsChatManager");
 
 module.exports = {
   name: "FriendsList",
   register(api) {
     api.onPlayerLogin(({ player }) => {
-      const relations = player?.getRelations?.();
-      const sender = player?.getPacketSender?.();
-      if (!relations) {
-        return;
+      FriendsChatManager.onLogin(player);
+    });
+
+    api.onPlayerLogout(({ player }) => {
+      FriendsChatManager.onLogout(player);
+    });
+
+    api.onSocialPacket((event) => {
+      const { player, packet } = event;
+      if (packet.type === "friends_chat_action") {
+        FriendsChatManager.handleAction(player, packet.action);
+      } else if (packet.type === "private_message") {
+        FriendsChatManager.handlePrivateMessage(player, packet.recipient, packet.text);
+      } else if (packet.type === "chat_filter") {
+        FriendsChatManager.setChatFilters(player, packet.publicMode, packet.privateMode, packet.tradeMode);
+      } else {
+        FriendsChatManager.handleChat(player, packet.text);
       }
-      relations.setPrivateMessageId?.(1);
-      relations.onLogin?.(player);
-      sender?.sendFriendStatus?.(2);
-      relations.updateLists?.(true);
+      event.handled = true;
+    });
+
+    api.onInterfaceActionClick((event) => {
+      if (FriendsChatManager.handleWidgetAction(
+        event.player,
+        event.groupId ?? -1,
+        event.childId ?? -1,
+        event.option,
+        event.opId ?? event.action,
+      )) {
+        event.handled = true;
+      }
     });
   },
 };
