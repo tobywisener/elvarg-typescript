@@ -117,6 +117,21 @@ for (const npc of Object.values<any>(dump.npcs)) {
 }
 assert.ok(assumed > 100, `expected assumed_rarity entries to be present, got ${assumed}`);
 
+// Conditional drops (wiki "Always" gated on a clue step / quest) must never drop unconditionally.
+const chicken = tablesByNpc.get(1173);
+assert.ok(chicken, "npc 1173 (Chicken) should have a table");
+const conditional = (chicken[0].tertiary || []).filter((e: any) => Number(e.out_of) <= 1);
+assert.ok(conditional.length > 0, "Chicken should carry a 1/1 conditional tertiary to guard against");
+const conditionalIds = new Set(conditional.map((e: any) => e.item_id));
+for (let i = 0; i < 500; i++) {
+  for (const drop of rollTable(chicken[0])) {
+    assert.ok(
+      !conditionalIds.has(drop.itemId),
+      `conditional drop ${drop.itemId} leaked from a Chicken kill on roll ${i}`
+    );
+  }
+}
+
 // The old core drop path must be gone.
 for (const removed of [
   "src/main/typescript/elvarg/game/entity/impl/npc/NPCDropGenerator.ts",

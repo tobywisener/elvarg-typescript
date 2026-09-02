@@ -29,6 +29,7 @@ const sharedTables = new Map();
 let itemOnGroundManager = null;
 let pluginApi = null;
 let unusableSubtableRows = 0;
+let conditionalTertiarySkipped = 0;
 
 function definitionPath(fileName) {
   return path.join(GameConstants.DEFINITIONS_DIRECTORY, fileName);
@@ -248,6 +249,15 @@ function rollTable(table) {
   }
 
   for (const entry of table.tertiary || []) {
+    // A tertiary at 1/1 is a conditional drop, not a guaranteed one: the wiki writes
+    // "Always" for things that always drop *given* a condition (an active clue step, a quest,
+    // a diary), and the condition only exists as free text in `notes`. Genuine 100% drops are
+    // in the guaranteed section with `always`. Dropping these unconditionally hands out clue
+    // keys and quest items from every kill, so skip them.
+    if (Number(entry.out_of) <= 1) {
+      conditionalTertiarySkipped++;
+      continue;
+    }
     if (hits(entry)) {
       drops.push(...resolveEntry(entry));
     }
