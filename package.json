@@ -7,7 +7,7 @@
   },
   "scripts": {
     "setup": "corepack yarn install --immutable && corepack yarn --cwd server install --immutable && corepack yarn --cwd client install --immutable",
-    "start": "yarn concurrently --kill-others --names server,client \"yarn --cwd server dev\" \"yarn --cwd client start\"",
+    "start": "yarn --cwd server ensure-cache && yarn concurrently --kill-others --names server,client \"yarn --cwd server dev\" \"yarn --cwd client start\"",
     "server": "yarn --cwd server dev",
     "client": "yarn --cwd client start"
   },
