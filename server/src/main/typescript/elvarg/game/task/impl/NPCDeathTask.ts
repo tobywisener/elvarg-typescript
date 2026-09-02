@@ -1,7 +1,6 @@
 import { Task } from "../Task";
 import { World } from "../../World";
 import { NPC } from "../../entity/impl/npc/NPC";
-import { NPCDropGenerator } from '../../../game/entity/impl/npc/NPCDropGenerator'
 import { Player } from "../../entity/impl/player/Player";
 import { Animation } from "../../model/Animation";
 import { Priority } from "../../model/Priority";
@@ -55,7 +54,6 @@ export class NPCDeathTask extends Task {
                             z: this.npc.getLocation().getZ(),
                         },
                     });
-                    NPCDropGenerator.start(this.killer, this.npc);
                     if (ArceuusSpells.hasDeathCharge(this.killer)) {
                         this.killer.setSpecialPercentage(Math.min(100, this.killer.getSpecialPercentage() + 15));
                         CombatSpecial.updateBar(this.killer);
