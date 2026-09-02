@@ -28,7 +28,7 @@ const sharedTables = new Map();
 
 let itemOnGroundManager = null;
 let pluginApi = null;
-let skippedTextRarity = 0;
+let unusableSubtableRows = 0;
 
 function definitionPath(fileName) {
   return path.join(GameConstants.DEFINITIONS_DIRECTORY, fileName);
@@ -75,7 +75,7 @@ function parseQuantityRaw(raw) {
 function loadDrops() {
   tablesByNpc.clear();
   sharedTables.clear();
-  skippedTextRarity = 0;
+  unusableSubtableRows = 0;
 
   const dump = readJson(DROPS_FILE);
   if (!dump || !dump.npcs) {
@@ -97,23 +97,38 @@ function loadDrops() {
     const entries = [];
     for (const entry of table.entries || []) {
       const rarity = parseSharedRarity(entry.rarity_raw);
-      if (!Number.isInteger(entry.item_id) || !rarity) {
-        skippedTextRarity++;
+      if (!rarity) {
+        unusableSubtableRows++;
         continue;
       }
-      entries.push({
-        itemId: entry.item_id,
-        quantity: parseQuantityRaw(entry.quantity_raw) || [1, 1],
-        weight: rarity.weight,
-        outOf: rarity.outOf,
-      });
+      // A row is one of: a nested table (the rare drop table rolls the gem table on 20/128),
+      // an empty slot, or an item. Only the last needs an id.
+      if (entry.shared_table) {
+        entries.push({ ref: entry.shared_table, weight: rarity.weight, outOf: rarity.outOf });
+      } else if (entry.nothing) {
+        entries.push({ nothing: true, weight: rarity.weight, outOf: rarity.outOf });
+      } else if (Number.isInteger(entry.item_id)) {
+        entries.push({
+          itemId: entry.item_id,
+          quantity: parseQuantityRaw(entry.quantity_raw) || [1, 1],
+          weight: rarity.weight,
+          outOf: rarity.outOf,
+        });
+      } else {
+        unusableSubtableRows++;
+      }
     }
     if (entries.length > 0) {
       sharedTables.set(name, entries);
     }
   }
 
-  return { npcs: tablesByNpc.size, tables: tableCount, shared: sharedTables.size };
+  return {
+    npcs: tablesByNpc.size,
+    tables: tableCount,
+    shared: sharedTables.size,
+    unusableSubtableRows,
+  };
 }
 
 function randomInt(bound) {
@@ -142,7 +157,11 @@ function hits(entry) {
   return randomInt(outOf) < weight;
 }
 
-function rollSharedTable(name) {
+function rollSharedTable(name, depth = 0) {
+  // Shared tables reference each other (rare -> gem -> mega-rare), so cap the chain.
+  if (depth > 4) {
+    return [];
+  }
   const entries = sharedTables.get(name);
   if (!entries || entries.length === 0) {
     return [];
@@ -154,6 +173,12 @@ function rollSharedTable(name) {
   for (const entry of entries) {
     roll -= entry.weight;
     if (roll < 0) {
+      if (entry.nothing) {
+        return [];
+      }
+      if (entry.ref) {
+        return rollSharedTable(entry.ref, depth + 1);
+      }
       const [min, max] = entry.quantity;
       return [{ itemId: entry.itemId, amount: min + randomInt(Math.max(1, max - min + 1)) }];
     }
@@ -205,8 +230,6 @@ function rollTable(table) {
       }
     } else if (Number.isInteger(entry.weight)) {
       main.push(entry);
-    } else {
-      skippedTextRarity++;
     }
   }
 
@@ -314,5 +337,5 @@ module.exports = {
   },
 
   // Exposed for the smoke test.
-  __internals: { loadDrops, rollTable, tablesByNpc, sharedTables },
+  __internals: { loadDrops, rollTable, rollSharedTable, tablesByNpc, sharedTables },
 };

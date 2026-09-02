@@ -54,9 +54,68 @@ assert.ok(hits > 50, `weighted entry ${weighted.item_id} never rolled (${hits} h
 const rdt = sharedTables.get("rareDrop");
 assert.ok(rdt && rdt.length > 0, "rare drop table should load");
 for (const entry of rdt) {
-  assert.ok(Number.isInteger(entry.itemId) && entry.itemId > 0, "shared entry needs an item id");
   assert.ok(entry.weight > 0 && entry.outOf > 0, "shared entry needs a numeric rarity");
+  const kind = entry.ref ? "ref" : entry.nothing ? "nothing" : "item";
+  if (kind === "item") {
+    assert.ok(Number.isInteger(entry.itemId) && entry.itemId > 0, "shared item entry needs an id");
+  }
 }
+assert.equal(stats.unusableSubtableRows, 0, "every shared-table row should be usable");
+
+// Nested table refs: the RDT rolls the gem table (20/128) and mega-rare (15/128). Before these
+// were kept as refs those 35/128 rolls silently produced nothing.
+const refs = rdt.filter((e: any) => e.ref).map((e: any) => e.ref);
+assert.deepEqual(refs.sort(), ["gem", "megaRare"], "RDT should reference gem + mega-rare");
+assert.ok(sharedTables.has("gem") && sharedTables.has("megaRare"), "nested targets must exist");
+assert.ok(sharedTables.has("talisman"), "gem table references the talisman table");
+
+// Rolling the RDT must reach items reachable ONLY through the nested gem table. Items the two
+// tables share (the key halves) would pass this check without any recursion, so exclude them.
+const rdtItemIds = new Set(rdt.filter((e: any) => e.itemId).map((e: any) => e.itemId));
+const gemOnlyIds = new Set(
+  (sharedTables.get("gem") || [])
+    .filter((e: any) => e.itemId && !rdtItemIds.has(e.itemId))
+    .map((e: any) => e.itemId)
+);
+assert.ok(gemOnlyIds.size > 0, "gem table should hold items the RDT does not");
+
+const rolls = 20000;
+let viaNested = 0;
+for (let i = 0; i < rolls; i++) {
+  for (const drop of plugin.__internals.rollSharedTable("rareDrop")) {
+    if (gemOnlyIds.has(drop.itemId)) {
+      viaNested++;
+    }
+  }
+}
+// P(gem ref) * P(gem-exclusive item) = 20/128 * 59/128 ~= 7.2%, so ~1440 of 20k.
+const gemRef = rdt.find((e: any) => e.ref === "gem");
+const gemOnlyWeight = (sharedTables.get("gem") || [])
+  .filter((e: any) => gemOnlyIds.has(e.itemId))
+  .reduce((sum: number, e: any) => sum + e.weight, 0);
+const expected = rolls * (gemRef.weight / gemRef.outOf) * (gemOnlyWeight / 128);
+assert.ok(
+  viaNested > expected * 0.7 && viaNested < expected * 1.3,
+  `nested gem rate off: ${viaNested} hits vs ~${Math.round(expected)} expected in ${rolls}`
+);
+
+// Assumed rates must stay flagged in the shipped data so they can be found and overridden.
+const dump = JSON.parse(fs.readFileSync("data/definitions/npc-drops.json", "utf8"));
+let assumed = 0;
+for (const npc of Object.values<any>(dump.npcs)) {
+  for (const table of npc.tables) {
+    for (const entry of [...table.entries, ...(table.tertiary || [])]) {
+      if (entry.assumed_rarity) {
+        assumed++;
+        assert.ok(
+          Number.isInteger(entry.out_of) && entry.out_of > 0,
+          "an assumed rarity must still be rollable"
+        );
+      }
+    }
+  }
+}
+assert.ok(assumed > 100, `expected assumed_rarity entries to be present, got ${assumed}`);
 
 // The old core drop path must be gone.
 for (const removed of [
@@ -70,5 +129,6 @@ for (const removed of [
 
 console.log(
   `npc-drops-plugin-smoke ok — ${stats.npcs} npcs, ${stats.tables} tables, ` +
-    `${stats.shared} shared tables, weighted hits ${hits}/20000`
+    `${stats.shared} shared tables, weighted hits ${hits}/20000, ` +
+    `nested-gem hits ${viaNested}/${rolls} (~${Math.round(expected)} expected), ${assumed} assumed rates`
 );
