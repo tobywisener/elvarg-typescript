@@ -107,6 +107,7 @@
     "test:route-core": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2022\"}' ts-node ./scripts/rsmod-route-core-smoke.ts",
     "test:weapon-profiles": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/weapon-profiles-smoke.ts",
     "test:npc-spawns": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/npc-spawns-smoke.ts",
+    "test:npc-drops": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/npc-drops-plugin-smoke.ts",
     "test:cache-definitions": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/cache-definitions-smoke.ts",
     "test:revert-item-drop": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/revert-item-drop-action-smoke.ts",
     "test:destroy-item": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/destroy-item-smoke.ts",

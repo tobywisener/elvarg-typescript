@@ -5,7 +5,6 @@ import { RegionManager } from "./collision/RegionManager";
 import { GameEngine } from "./GameEngine";
 import { ObjectSpawnDefinitionLoader } from "./definition/loader/impl/ObjectSpawnDefinitionLoader";
 import { NpcDefinitionLoader } from "./definition/loader/impl/NpcDefinitionLoader";
-import { NpcDropDefinitionLoader } from "./definition/loader/impl/NpcDropDefinitionLoader";
 import { InterfaceLayoutDefinitionLoader } from "./definition/loader/impl/InterfaceLayoutDefinitionLoader";
 import { NpcSpawnDefinitionLoader } from "./definition/loader/impl/NpcSpawnDefinitionLoader";
 import { ShopDefinitionLoader } from "./definition/loader/impl/ShopDefinitionLoader";
@@ -40,7 +39,6 @@ export class GameBuilder {
         new ObjectSpawnDefinitionLoader().load();
         new NpcDefinitionLoader().load();
         new NpcSpawnDefinitionLoader().load();
-        new NpcDropDefinitionLoader().load();
         new ShopDefinitionLoader().load();
         ShopManager.initialize();
     }
