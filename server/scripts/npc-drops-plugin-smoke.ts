@@ -10,7 +10,11 @@ const { loadDrops, rollTable, tablesByNpc, sharedTables } = plugin.__internals;
 
 const stats = loadDrops();
 assert.ok(stats.npcs > 1000, `expected a populated dump, got ${stats.npcs} npcs`);
-assert.ok(stats.tables >= stats.npcs, "every npc should map to at least one table");
+// Normalized: distinct tables are far fewer than npcs, and every npc still resolves to one.
+assert.ok(stats.tables < stats.npcs, "tables should be shared across npcs, not duplicated");
+for (const [id, tables] of tablesByNpc) {
+  assert.ok(tables.length > 0, `npc ${id} resolved to no tables`);
+}
 assert.ok(stats.shared >= 4, `expected shared tables to load, got ${stats.shared}`);
 
 // Abyssal demon (415) is a stable, well-known table: 128-slot main pool + guaranteed ashes.
@@ -102,20 +106,39 @@ assert.ok(
 // Assumed rates must stay flagged in the shipped data so they can be found and overridden.
 const dump = JSON.parse(fs.readFileSync("data/definitions/npc-drops.json", "utf8"));
 let assumed = 0;
-for (const npc of Object.values<any>(dump.npcs)) {
-  for (const table of npc.tables) {
-    for (const entry of [...table.entries, ...(table.tertiary || [])]) {
-      if (entry.assumed_rarity) {
-        assumed++;
-        assert.ok(
-          Number.isInteger(entry.out_of) && entry.out_of > 0,
-          "an assumed rarity must still be rollable"
-        );
-      }
+for (const table of Object.values<any>(dump.tables)) {
+  for (const entry of [...table.entries, ...(table.tertiary || [])]) {
+    if (entry.assumed_rarity) {
+      assumed++;
+      assert.ok(
+        Number.isInteger(entry.out_of) && entry.out_of > 0,
+        "an assumed rarity must still be rollable"
+      );
     }
   }
 }
 assert.ok(assumed > 100, `expected assumed_rarity entries to be present, got ${assumed}`);
+
+// Normalized layout: every npc reference must resolve, and shared tables must be one object,
+// not a copy per npc — that is the whole point of the format.
+for (const npc of Object.values<any>(dump.npcs)) {
+  for (const ref of npc.tables) {
+    assert.ok(dump.tables[ref], `npc ${npc.npc_id} references missing table '${ref}'`);
+  }
+}
+assert.ok(
+  Object.keys(dump.tables).length < Object.keys(dump.npcs).length,
+  "tables should be deduplicated below the npc count"
+);
+const goblinIds = Object.values<any>(dump.npcs)
+  .filter((n: any) => n.wiki_page === "Goblin")
+  .map((n: any) => n.npc_id);
+assert.ok(goblinIds.length > 5, "Goblin should span several npc ids");
+const first = tablesByNpc.get(goblinIds[0])[0];
+const shared = goblinIds
+  .map((id: number) => tablesByNpc.get(id))
+  .filter((t: any) => t && t[0] === first).length;
+assert.ok(shared > 1, "npcs on the same table must share one object instance");
 
 // Conditional drops (wiki "Always" gated on a clue step / quest) must never drop unconditionally.
 const chicken = tablesByNpc.get(1173);

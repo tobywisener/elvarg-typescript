@@ -6,7 +6,8 @@
  *   npc-drops.json          -> data/definitions/npc-drops.json
  *   subtables.json          -> data/definitions/npc-drop-subtables.json
  *
- * Shape: { npcs: { "<npcId>": { name, tables: [ { label, main_max_roll, entries[], tertiary[] } ] } } }
+ * Shape: { tables: { "<tableId>": { label, main_max_roll, entries[], tertiary[] } },
+ *           npcs:   { "<npcId>": { name, tables: ["<tableId>"] } } }
  * Entries carry `weight` out of `out_of`; `shared_table` entries roll one of the shared tables
  * (rare drop table, gem, herb, seed) held in the subtables file.
  */
@@ -21,7 +22,7 @@ const { PlayerRights } = require("../../src/main/typescript/elvarg/game/model/ri
 const DROPS_FILE = "npc-drops.json";
 const SUBTABLES_FILE = "npc-drop-subtables.json";
 
-/** npcId -> array of tables */
+/** npcId -> array of shared table objects (one instance per distinct table) */
 const tablesByNpc = new Map();
 /** shared table name -> [{ itemId, quantity, weight }] */
 const sharedTables = new Map();
@@ -83,15 +84,35 @@ function loadDrops() {
     return { npcs: 0, tables: 0, shared: 0 };
   }
 
-  let tableCount = 0;
+  // Tables are stored once and referenced by id, so the same table shared by 40 npc ids is one
+  // object rather than 40 copies.
+  const tableById = dump.tables;
+  if (!tableById) {
+    console.error(
+      "[NpcDrops] npc-drops.json has no `tables` section — regenerate it with the wiki dumper."
+    );
+    return { npcs: 0, tables: 0, shared: 0, unusableSubtableRows: 0 };
+  }
+
   for (const [npcId, npc] of Object.entries(dump.npcs)) {
     const id = Number(npcId);
     if (!Number.isInteger(id) || !Array.isArray(npc.tables) || npc.tables.length === 0) {
       continue;
     }
-    tablesByNpc.set(id, npc.tables);
-    tableCount += npc.tables.length;
+    const resolved = [];
+    for (const ref of npc.tables) {
+      const table = tableById[ref];
+      if (table) {
+        resolved.push(table);
+      } else {
+        console.error(`[NpcDrops] npc ${id} references unknown drop table '${ref}'`);
+      }
+    }
+    if (resolved.length > 0) {
+      tablesByNpc.set(id, resolved);
+    }
   }
+  const tableCount = Object.keys(tableById).length;
 
   const subtables = readJson(SUBTABLES_FILE) || {};
   for (const [name, table] of Object.entries(subtables)) {
