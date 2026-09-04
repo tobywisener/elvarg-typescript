@@ -3220,9 +3220,15 @@ function getArchetypeChoices(loadoutId) {
 function buildGeneratedPreset(player, state) {
   const loadoutId = state?.pvp?.loadoutId ?? "edge_main_melee";
   const profile = getPvpProfile(state?.pvp?.profileId);
-  const choices = getArchetypeChoices(loadoutId).filter((entry) =>
+  // Loadout and profile are drawn independently at spawn, so some pairs (e.g.
+  // edge_med_level x novice) leave every archetype gated out. Falling back to
+  // the ungated pool keeps the bot geared instead of dumping a naked level 3
+  // into the wilderness.
+  const allChoices = getArchetypeChoices(loadoutId);
+  const gatedChoices = allChoices.filter((entry) =>
     profileAllowedForArchetype(entry, profile)
   );
+  const choices = gatedChoices.length > 0 ? gatedChoices : allChoices;
   const savedArchetypeId = state?.pvp?.generatedArchetypeId ?? null;
   const archetype =
     choices.find((entry) => entry.id === savedArchetypeId) ?? weightedPick(choices);
@@ -3352,4 +3358,5 @@ function applyGeneratedPvpLoadout(player, state, options = {}) {
 
 module.exports = {
   applyGeneratedPvpLoadout,
+  __testing: { buildGeneratedPreset },
 };
