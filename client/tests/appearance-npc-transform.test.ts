@@ -12,4 +12,18 @@ const bytes = new Uint8Array([
 const appearance = decodeAppearanceBinary(bytes);
 assert.strictEqual(appearance?.npcTransformationId, 172);
 assert.strictEqual(appearance?.name, "Toby");
+
+const ringAppearance = decodeAppearanceBinary(new Uint8Array([
+    0, 255, 255,
+    ...new Array(24).fill(0),
+    ...new Array(5).fill(0),
+    ...new Array(14).fill(0),
+    82, 105, 110, 103, 0,
+    3, 0, 32, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    255, 255, 255, 255,
+    0, 0, 46, 204,
+]));
+assert.strictEqual(ringAppearance?.equipment[9], 11980);
 console.log("npc-transform appearance decode passed");

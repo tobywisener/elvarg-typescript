@@ -400,7 +400,22 @@ class ClientConnection {
             } else if (actionPacket.widgetId === WORLD_MAP_CLOSE_WIDGET_ID) {
               this.player.getPacketSender().closeWorldMap();
             } else if (equipmentSlot >= 0) {
-              EquipPacketListener.unequip(this.player, equipmentSlot);
+              const item = this.player.getEquipment().getItems()[equipmentSlot];
+              const itemActionHandled = !!item?.getId &&
+                PluginManager.emitItemAction({
+                  player: this.player,
+                  interfaceId: 1688,
+                  item,
+                  itemId: item.getId(),
+                  slot: equipmentSlot,
+                  clickType: actionPacket.buttonNum ?? 1,
+                  option: actionPacket.option,
+                  subOpId: actionPacket.subOpId,
+                  handled: false,
+                });
+              if (!itemActionHandled) {
+                EquipPacketListener.unequip(this.player, equipmentSlot);
+              }
             } else if (Bank.handleWidgetAction(this.player, actionPacket)) {
               // Bank owns its cache-native widgets while the bank modal is open.
             } else if (ShopManager.handleWidgetAction(this.player, actionPacket)) {
@@ -453,6 +468,18 @@ class ClientConnection {
               // Arceuus self-cast spells are identified by their cache spell name.
             } else if (actionPacket.itemId != null && actionPacket.slot != null &&
                 this.player.getInventory().getItems()[actionPacket.slot]?.getId() === actionPacket.itemId) {
+              if (actionPacket.subOpId && PluginManager.emitItemAction({
+                player: this.player,
+                interfaceId: actionPacket.widgetId,
+                item: this.player.getInventory().getItems()[actionPacket.slot],
+                itemId: actionPacket.itemId,
+                slot: actionPacket.slot,
+                clickType: actionPacket.buttonNum ?? 1,
+                subOpId: actionPacket.subOpId,
+                handled: false,
+              })) {
+                continue;
+              }
               this.inventoryAction({
                 type: "inventory_action", widgetId: actionPacket.widgetId, slot: actionPacket.slot,
                 itemId: actionPacket.itemId, option: actionPacket.option, optionIndex: actionPacket.buttonNum,
@@ -803,7 +830,7 @@ class ClientConnection {
       const definition = ItemDefinition.forId(packet.itemId);
       player.getPacketSender().sendMessage(definition.getExamine() || definition.getName());
     } else {
-      ItemActionPacketListener.handleAction(player, packet.widgetId, packet.itemId, packet.slot, packet.optionIndex ?? 1);
+      ItemActionPacketListener.handleAction(player, packet.widgetId, packet.itemId, packet.slot, packet.optionIndex ?? 1, packet.option);
     }
   }
 

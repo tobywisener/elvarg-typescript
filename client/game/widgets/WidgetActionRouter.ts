@@ -1,5 +1,6 @@
 import { sendWidgetAction } from "../../network/ServerConnection";
 import type { WidgetActionClientPayload } from "../../network/ServerConnection";
+import { sendWidgetActionMessage } from "../../network/ServerConnection";
 import type { Cs2Vm, ScriptEvent } from "../../rs/cs2/Cs2Vm";
 import { createScriptEvent } from "../../rs/cs2/Cs2Vm";
 import type { VarManager } from "../../rs/config/vartype/VarManager";
@@ -113,6 +114,14 @@ export class WidgetActionRouter {
 
         if ((groupId | 0) === 679) {
             if (this.deps.getPlayerDesign().handleWidgetAction(childId | 0)) {
+                return;
+            }
+        }
+
+        if ((groupId | 0) === 219) {
+            const payload = buildWidgetActionPayload(widgetManager, event);
+            if (payload && typeof payload.slot === "number") {
+                sendWidgetActionMessage({ ...payload, slot: payload.slot + 1 });
                 return;
             }
         }

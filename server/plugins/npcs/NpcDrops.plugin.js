@@ -18,9 +18,17 @@ const path = require("path");
 const { Item } = require("../../src/main/typescript/elvarg/game/model/Item");
 const { GameConstants } = require("../../src/main/typescript/elvarg/game/GameConstants");
 const { PlayerRights } = require("../../src/main/typescript/elvarg/game/model/rights/PlayerRights");
+const { Wilderness } = require("../../src/main/typescript/elvarg/game/content/wilderness/Wilderness");
+const {
+  autoCollectCurrencies,
+  isWearingImbuedRingOfWealth,
+  isWearingRingOfWealth,
+} = require("../items/RingOfWealth.plugin");
 
 const DROPS_FILE = "npc-drops.json";
 const SUBTABLES_FILE = "npc-drop-subtables.json";
+const CURRENCY_IDS = new Set([995, 6529, 21555]);
+const RING_OF_WEALTH_TABLES = new Set(["rareDrop", "gem", "megaRare"]);
 
 /** npcId -> array of shared table objects (one instance per distinct table) */
 const tablesByNpc = new Map();
@@ -170,16 +178,16 @@ function rollQuantity(entry) {
 }
 
 /** Independent `weight / out_of` chance. */
-function hits(entry) {
+function hits(entry, doubleChance = false) {
   const outOf = Number(entry.out_of);
   if (!Number.isInteger(outOf) || outOf <= 0) {
     return false;
   }
   const weight = Number.isInteger(entry.weight) ? entry.weight : 1;
-  return randomInt(outOf) < weight;
+  return randomInt(outOf) < Math.min(outOf, weight * (doubleChance ? 2 : 1));
 }
 
-function rollSharedTable(name, depth = 0) {
+function rollSharedTable(name, player, depth = 0) {
   // Shared tables reference each other (rare -> gem -> mega-rare), so cap the chain.
   if (depth > 4) {
     return [];
@@ -188,18 +196,23 @@ function rollSharedTable(name, depth = 0) {
   if (!entries || entries.length === 0) {
     return [];
   }
+  const pool = isWearingRingOfWealth(player) && RING_OF_WEALTH_TABLES.has(name)
+    ? entries.filter((entry) => !entry.nothing)
+    : entries;
   // Published as per-item n/outOf slots sharing one pool, so roll the pool once and walk
   // cumulative weights. A roll past the last slot is a miss, which is the empty part of the pool.
-  const outOf = entries[0].outOf;
+  const outOf = pool === entries
+    ? entries[0].outOf
+    : pool.reduce((sum, entry) => sum + entry.weight, 0);
   let roll = randomInt(Math.max(1, outOf));
-  for (const entry of entries) {
+  for (const entry of pool) {
     roll -= entry.weight;
     if (roll < 0) {
       if (entry.nothing) {
         return [];
       }
       if (entry.ref) {
-        return rollSharedTable(entry.ref, depth + 1);
+        return rollSharedTable(entry.ref, player, depth + 1);
       }
       const [min, max] = entry.quantity;
       return [{ itemId: entry.itemId, amount: min + randomInt(Math.max(1, max - min + 1)) }];
@@ -208,12 +221,12 @@ function rollSharedTable(name, depth = 0) {
   return [];
 }
 
-function resolveEntry(entry) {
+function resolveEntry(entry, player) {
   if (entry.nothing) {
     return [];
   }
   if (entry.shared_table) {
-    return rollSharedTable(entry.shared_table);
+    return rollSharedTable(entry.shared_table, player);
   }
   if (!Number.isInteger(entry.item_id)) {
     return [];
@@ -231,7 +244,7 @@ function resolveEntry(entry) {
  * One kill: guaranteed drops, then a pre-roll (which replaces the main roll when it hits),
  * then a single weighted main-table roll, then independent separate/tertiary rolls.
  */
-function rollTable(table) {
+function rollTable(table, player, npc) {
   const drops = [];
   const entries = Array.isArray(table.entries) ? table.entries : [];
 
@@ -240,15 +253,15 @@ function rollTable(table) {
 
   for (const entry of entries) {
     if (entry.always) {
-      drops.push(...resolveEntry(entry));
+      drops.push(...resolveEntry(entry, player));
     } else if (entry.pre_roll) {
       if (!preRollHit && hits(entry)) {
-        drops.push(...resolveEntry(entry));
+        drops.push(...resolveEntry(entry, player));
         preRollHit = true;
       }
     } else if (entry.separate_roll) {
       if (hits(entry)) {
-        drops.push(...resolveEntry(entry));
+        drops.push(...resolveEntry(entry, player));
       }
     } else if (Number.isInteger(entry.weight)) {
       main.push(entry);
@@ -263,7 +276,7 @@ function rollTable(table) {
     for (const entry of main) {
       roll -= entry.weight;
       if (roll < 0) {
-        drops.push(...resolveEntry(entry));
+        drops.push(...resolveEntry(entry, player));
         break;
       }
     }
@@ -279,8 +292,10 @@ function rollTable(table) {
       conditionalTertiarySkipped++;
       continue;
     }
-    if (hits(entry)) {
-      drops.push(...resolveEntry(entry));
+    const wildernessClue = /^clue scroll \((?!beginner\))/i.test(entry.name || "") &&
+      isWearingImbuedRingOfWealth(player) && Wilderness.isInLocation(npc?.getLocation?.());
+    if (hits(entry, wildernessClue)) {
+      drops.push(...resolveEntry(entry, player));
     }
   }
 
@@ -302,10 +317,17 @@ function dropFor(player, npc, npcId, location) {
     return 0;
   }
 
-  const drops = rollTable(table);
+  const drops = rollTable(table, player, npc);
   for (const drop of drops) {
     if (!Number.isInteger(drop.itemId) || drop.amount <= 0) {
       continue;
+    }
+    if (CURRENCY_IDS.has(drop.itemId) && autoCollectCurrencies(player)) {
+      const inventory = player.getInventory();
+      if (inventory.contains(drop.itemId) || inventory.getFreeSlots() > 0) {
+        inventory.adds(drop.itemId, drop.amount);
+        continue;
+      }
     }
     const item = new Item(drop.itemId, drop.amount);
     const stackable = item.getDefinition && item.getDefinition()

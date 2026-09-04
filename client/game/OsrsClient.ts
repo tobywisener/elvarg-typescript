@@ -4286,7 +4286,7 @@ export class OsrsClient {
         const slots: InventorySlotInput[] = [];
         // Map from EquipmentSlot indices (server equip array) to EquipmentDisplaySlot indices (CS2 scripts)
         // e.g., equip[7] (GLOVES) -> display slot 9, equip[8] (BOOTS) -> display slot 10
-        for (let equipSlot = 0; equipSlot < equip.length && equipSlot < 12; equipSlot++) {
+        for (let equipSlot = 0; equipSlot < equip.length && equipSlot < 14; equipSlot++) {
             const itemId = equip[equipSlot] | 0;
             if (itemId > 0) {
                 const displaySlot = EquipToDisplaySlot[equipSlot];

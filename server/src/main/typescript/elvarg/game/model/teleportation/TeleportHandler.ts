@@ -101,14 +101,14 @@ export class TeleportHandler {
         player.getCombat().reset();
     }
 
-    public static checkReqs(player: Player, targetLocation: Location): boolean {
+    public static checkReqs(player: Player, targetLocation: Location, wildernessLevelLimit: number = 20): boolean {
         if (player.busy()) {
             player.getPacketSender().sendMessage("You cannot do that right now.");
             return false;
         }
 
-        if (Wilderness.isIn(player) && player.getWildernessLevel() > 20 && player.getRights() !== PlayerRights.DEVELOPER) {
-            player.getPacketSender().sendMessage("You must be below level 20 of Wilderness to use teleportation spells.");
+        if (Wilderness.isIn(player) && player.getWildernessLevel() > wildernessLevelLimit && player.getRights() !== PlayerRights.DEVELOPER) {
+            player.getPacketSender().sendMessage(`You must be below level ${wildernessLevelLimit} of Wilderness to use teleportation.`);
             return false;
         }
 

@@ -73,6 +73,24 @@ assert.deepEqual(refs.sort(), ["gem", "megaRare"], "RDT should reference gem + m
 assert.ok(sharedTables.has("gem") && sharedTables.has("megaRare"), "nested targets must exist");
 assert.ok(sharedTables.has("talisman"), "gem table references the talisman table");
 
+// Ring of wealth removes empty slots from both the gem and nested mega-rare tables.
+const ringPlayer: any = {
+  getEquipment: () => ({ get: () => ({ getId: () => 11980 }) }),
+};
+const originalRandom = Math.random;
+Math.random = () => 0;
+assert.deepEqual(
+  plugin.__internals.rollSharedTable("gem", ringPlayer),
+  [{ itemId: 1623, amount: 1 }],
+  "ring of wealth should remove the gem table's empty slots"
+);
+assert.deepEqual(
+  plugin.__internals.rollSharedTable("megaRare", ringPlayer),
+  [{ itemId: 1247, amount: 1 }],
+  "ring of wealth should remove the mega-rare table's empty slots"
+);
+Math.random = originalRandom;
+
 // Rolling the RDT must reach items reachable ONLY through the nested gem table. Items the two
 // tables share (the key halves) would pass this check without any recursion, so exclude them.
 const rdtItemIds = new Set(rdt.filter((e: any) => e.itemId).map((e: any) => e.itemId));

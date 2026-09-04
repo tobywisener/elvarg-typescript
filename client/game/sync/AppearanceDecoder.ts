@@ -20,6 +20,7 @@
  * 14. final byte
  * 15. custom ammo quantity (signed int)
  * 16. custom ammo item id (signed int)
+ * 17. custom ring item id (signed int)
  */
 
 const EQUIPMENT_SLOTS = 12;
@@ -85,6 +86,7 @@ export interface DecodedAppearance {
     actions: [string, string, string];
     ammoQuantity: number;
     ammoItemId: number;
+    ringItemId: number;
 }
 
 /**
@@ -316,6 +318,12 @@ export function decodeAppearanceBinary(buffer: Uint8Array): DecodedAppearance | 
         // composition format so the worn inventory can show the equipped ammo stack.
         const ammoItemId = reader.hasMore() ? reader.readInt() : -1;
 
+        // 17. Rings do not affect the player model, so the base appearance block omits them.
+        const ringItemId = reader.hasMore() ? reader.readInt() : -1;
+        if (ringItemId >= 0) {
+            equipment[9] = ringItemId;
+        }
+
         return {
             gender,
             headIconPk,
@@ -342,6 +350,7 @@ export function decodeAppearanceBinary(buffer: Uint8Array): DecodedAppearance | 
             actions,
             ammoQuantity,
             ammoItemId,
+            ringItemId,
         };
     } catch (err) {
         console.warn("[AppearanceDecoder] Failed to decode binary appearance", err);

@@ -3,6 +3,7 @@ import {
     sendInventoryUse,
     sendInventoryUseOn,
     sendWidgetAction,
+    sendWidgetActionMessage,
 } from "../../network/ServerConnection";
 import { ClientPacketId, createPacket, queuePacket } from "../../network/packet";
 import type { Cs2Vm } from "../../rs/cs2/Cs2Vm";
@@ -200,6 +201,21 @@ export function handleWidgetActionTargeting(
     const optionLower = (event.option || "").toLowerCase();
     const targetItemId = event.itemId ?? event.widget.itemId ?? -1;
     const isInventoryItem = targetItemId >= 0 || groupId === 149;
+    const isEquipmentItem = (groupId === 387 || groupId === 84) && targetItemId >= 0;
+
+    if (isEquipmentItem && (optionLower === "rub" || optionLower === "features")) {
+        sendWidgetActionMessage({
+            widgetId: ((groupId & 0xffff) << 16) | (childId & 0xffff),
+            groupId,
+            childId,
+            option: event.option,
+            target: event.target,
+            opId: event.opIndex,
+            slot: event.slot ?? event.widget.childIndex ?? childId,
+            itemId: targetItemId,
+        });
+        return true;
+    }
 
     if (isInventoryItem && optionLower === "use") {
         const targetSlot = event.slot ?? event.widget.childIndex ?? childId;
@@ -248,6 +264,8 @@ export function handleWidgetActionTargeting(
         "fill",
         "craft",
         "check",
+        "boss log",
+        "coin collection",
     ];
     if (isInventoryItem && inventoryItemActions.includes(optionLower)) {
         const targetSlot = event.slot ?? event.widget.childIndex ?? childId;

@@ -1319,11 +1319,13 @@ export function checkInteractions(host: WebGLOsrsRendererHost, ): void {
         const hasUIClickTarget = leftClicked
             ? host.osrsClient.isPointOverWidget(inputManager.leftClickX, inputManager.leftClickY)
             : false;
+        const widgetMenuOpen = !!(host.canvas as any).__ui?.menu?.open;
 
         if (
             leftClicked &&
             !leftClickMenuToggle &&
             !host.osrsClient.menuOpen &&
+            !widgetMenuOpen &&
             !leftClickInUIRegion &&
             !hasUIClickTarget
         ) {

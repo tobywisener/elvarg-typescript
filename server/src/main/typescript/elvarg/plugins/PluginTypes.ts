@@ -365,6 +365,8 @@ export interface PluginItemActionEvent {
   itemId: number;
   slot: number;
   clickType: number;
+  option?: string;
+  subOpId?: number;
   handled: boolean;
 }
 

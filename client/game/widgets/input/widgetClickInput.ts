@@ -1,4 +1,4 @@
-import { sendWidgetAction } from "../../../network/ServerConnection";
+import { sendWidgetAction, sendWidgetActionMessage } from "../../../network/ServerConnection";
 import { ClientPacketId, createPacket, queuePacket } from "../../../network/packet";
 import type { ScriptEvent } from "../../../rs/cs2/Cs2Vm";
 import { shouldTransmitAction } from "../../../widgets/WidgetFlags";
@@ -268,6 +268,24 @@ export function processWidgetClickInput(
                             : typeof w.childIndex === "number"
                               ? w.childIndex
                               : w.uid & 0xffff) | 0;
+                    if (primaryWidgetGroupId === 219) {
+                        const payload = deps.buildWidgetActionPayload({
+                            widget: w,
+                            option: primaryAction.option,
+                            target: primaryAction.target,
+                            source: "primary",
+                            cursorX: widgetInteraction.clickedWidgetX,
+                            cursorY: widgetInteraction.clickedWidgetY,
+                            slot: primaryAction.slot,
+                            itemId: primaryAction.itemId,
+                            opIndex: primaryAction.opIndex,
+                        });
+                        if (payload && typeof payload.slot === "number") {
+                            sendWidgetActionMessage({ ...payload, slot: payload.slot + 1 });
+                            widgetInteraction.clickedWidgetHandled = true;
+                            break;
+                        }
+                    }
                     if (
                         deps.handleTradeWidgetAction(
                             w,
