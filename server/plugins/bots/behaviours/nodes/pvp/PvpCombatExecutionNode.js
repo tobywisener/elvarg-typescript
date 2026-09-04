@@ -267,7 +267,10 @@ class PvpCombatExecutionNode {
     const basePrayerReviewMaxMs = Number(resolvedProfile?.prayerReviewMs?.max ?? 2400);
 
     const confidenceTier = Number(resolvedProfile?.confidenceTier ?? 0);
-    if (confidenceTier < 3) {
+    // Novice bots fight prayerless; standard and above manage protection and
+    // offensive prayers. Tiers below veteran lean on targetStyleReactionTicks
+    // so they switch late rather than reading the style instantly.
+    if (confidenceTier < 2) {
       pvp.nextPrayerReviewAt =
         nowMs + randomInRange(basePrayerReviewMinMs, basePrayerReviewMaxMs);
       return false;

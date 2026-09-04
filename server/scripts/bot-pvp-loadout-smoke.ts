@@ -54,4 +54,57 @@ assert.deepEqual(
   `loadout/profile pairs that generate no preset (bots spawn naked at level 3): ${failures.join(", ")}`
 );
 
-console.log(`bot-pvp-loadout-smoke: OK (${checked} loadout/profile pairs)`);
+// Prayer management is gated on confidenceTier in PvpCombatExecutionNode. Any tier
+// allowed to pray must also declare a style-reaction window, otherwise it reads the
+// opponent's combat style instantly and out-prays the tiers above it.
+const PRAYER_MIN_TIER = 2;
+for (const profile of profiles) {
+  const tier = Number(profile.confidenceTier ?? 0);
+  if (tier < PRAYER_MIN_TIER) {
+    continue;
+  }
+  const reaction = profile.targetStyleReactionTicks;
+  assert.ok(
+    reaction && Number(reaction.max) > 0,
+    `profile ${profile.id} prays (tier ${tier}) but has no targetStyleReactionTicks window`
+  );
+  assert.ok(
+    Number(reaction.min) > 0 && Number(reaction.min) <= Number(reaction.max),
+    `profile ${profile.id} has an invalid targetStyleReactionTicks range`
+  );
+}
+
+// Lower tiers must not react faster than higher ones.
+const praying = profiles
+  .filter((profile: any) => Number(profile.confidenceTier ?? 0) >= PRAYER_MIN_TIER)
+  .sort((a: any, b: any) => Number(a.confidenceTier) - Number(b.confidenceTier));
+for (let i = 1; i < praying.length; i++) {
+  const slower = praying[i - 1];
+  const faster = praying[i];
+  assert.ok(
+    Number(slower.targetStyleReactionTicks.min) >= Number(faster.targetStyleReactionTicks.min),
+    `profile ${slower.id} reacts faster than the higher tier ${faster.id}`
+  );
+}
+
+// Virtual food charges are what decide how long a bot survives a fight, so every
+// profile needs one and it must not shrink as the tier climbs.
+const byTier = [...profiles].sort(
+  (a: any, b: any) => Number(a.confidenceTier) - Number(b.confidenceTier)
+);
+for (const profile of byTier) {
+  assert.ok(
+    Number.isFinite(Number(profile.foodCharges)) && Number(profile.foodCharges) >= 1,
+    `profile ${profile.id} is missing a usable foodCharges value`
+  );
+}
+for (let i = 1; i < byTier.length; i++) {
+  assert.ok(
+    Number(byTier[i].foodCharges) >= Number(byTier[i - 1].foodCharges),
+    `profile ${byTier[i].id} has fewer foodCharges than the lower tier ${byTier[i - 1].id}`
+  );
+}
+
+console.log(
+  `bot-pvp-loadout-smoke: OK (${checked} loadout/profile pairs, ${profiles.length} profiles)`
+);
