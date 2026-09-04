@@ -55,6 +55,10 @@ const DESTINATIONS = {
     teleport("Arceuus: Harmony Island", location(3797, 2866), TeleportType.ARCEUUS),
     teleport("Arceuus: Barrows", location(3565, 3315), TeleportType.ARCEUUS),
     teleport("Arceuus: Ape Atoll", location(2770, 9100), TeleportType.ARCEUUS),
+    teleport("Ring of wealth: Grand Exchange", location(3163, 3488), TeleportType.NORMAL),
+    teleport("Ring of wealth: Miscellania", location(2539, 3864), TeleportType.NORMAL),
+    teleport("Ring of wealth: Falador Park", location(2994, 3377), TeleportType.NORMAL),
+    teleport("Ring of wealth: Dondakan", location(2824, 10168), TeleportType.NORMAL),
   ],
   [TAB.WILDERNESS]: [
     teleport("Ancient: Dareeyak", location(2966, 3696), TeleportType.ANCIENT),

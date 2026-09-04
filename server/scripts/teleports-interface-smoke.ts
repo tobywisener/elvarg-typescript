@@ -19,7 +19,17 @@ Teleports.register({
 
 assert.equal(definition.groupId, GROUP_ID);
 assert.equal(definition.scroll[0].contentHeight, LIST_CONTENT_HEIGHT);
-assert.equal(DESTINATIONS[TAB.TELEPORTS].length, 28);
+assert.equal(DESTINATIONS[TAB.TELEPORTS].length, 32);
+assert.deepEqual(
+  DESTINATIONS[TAB.TELEPORTS].slice(-4).map((entry: any) => entry.name),
+  [
+    "Ring of wealth: Grand Exchange",
+    "Ring of wealth: Miscellania",
+    "Ring of wealth: Falador Park",
+    "Ring of wealth: Dondakan",
+  ],
+  "Ring of Wealth destinations must appear at the bottom of the Teleports tab"
+);
 assert.equal(DESTINATIONS[TAB.WILDERNESS].length, 5);
 assert.equal(DESTINATIONS[TAB.BOSSES].length, 10);
 assert.ok(command && tabs && rows, "teleport command and interface actions must be registered");
@@ -73,4 +83,4 @@ TeleportHandler.checkReqs = checkReqs;
 TeleportHandler.teleport = teleportPlayer;
 assert.equal(teleport[1], DESTINATIONS[TAB.WILDERNESS][0].destination, "the selected row must use the active category");
 assert.equal(interfaceId, -1, "selecting a row closes the interface before checking teleport requirements");
-console.info("teleports interface ok: 28 spellbook teleports, 5 wilderness teleports, 10 bosses");
+console.info("teleports interface ok: 32 standard teleports, 5 wilderness teleports, 10 bosses");
