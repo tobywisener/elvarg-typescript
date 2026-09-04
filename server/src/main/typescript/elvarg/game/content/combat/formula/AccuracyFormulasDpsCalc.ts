@@ -40,6 +40,18 @@ const getPlayerCombatSpecial = (player: Player): any | null => {
 export class AccuracyFormulasDpsCalc {
     private static readonly rollCache = new WeakMap<Mobile, RollCacheEntry>();
 
+    private static scaleRatio(value: number, numerator: number, denominator: number): number {
+        return Math.floor((value * numerator) / denominator);
+    }
+
+    private static scalePercent(value: number, percent: number): number {
+        return AccuracyFormulasDpsCalc.scaleRatio(value, percent, 100);
+    }
+
+    private static scaleSpecial(value: number, multiplier: number): number {
+        return AccuracyFormulasDpsCalc.scaleRatio(value, Math.round(multiplier * 1000), 1000);
+    }
+
     private static getRollCache(entity: Mobile): RollCacheEntry {
         const cycle = World.getProcessCycle();
         const cached = this.rollCache.get(entity);
@@ -82,64 +94,64 @@ export class AccuracyFormulasDpsCalc {
         return entity.getAsNpc().getCurrentDefinition().getStats()[slot] ?? 0;
     }
 
-    private static meleeAttackPrayerBonus(player: Player): number {
+    private static meleeAttackPrayerPercent(player: Player): number {
         if (PrayerHandler.isActivated(player, PrayerHandler.CLARITY_OF_THOUGHT)) {
-            return 1.05;
+            return 105;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.IMPROVED_REFLEXES)) {
-            return 1.10;
+            return 110;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.INCREDIBLE_REFLEXES)) {
-            return 1.15;
+            return 115;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.CHIVALRY)) {
-            return 1.15;
+            return 115;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.PIETY)) {
-            return 1.20;
+            return 120;
         }
-        return 1;
+        return 100;
     }
 
-    private static defencePrayerBonus(player: Player): number {
+    private static defencePrayerPercent(player: Player): number {
         if (PrayerHandler.isActivated(player, PrayerHandler.THICK_SKIN)) {
-            return 1.05;
+            return 105;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.ROCK_SKIN)) {
-            return 1.10;
+            return 110;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.STEEL_SKIN)) {
-            return 1.15;
+            return 115;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.CHIVALRY)) {
-            return 1.20;
+            return 120;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.PIETY)) {
-            return 1.25;
+            return 125;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.RIGOUR)) {
-            return 1.25;
+            return 125;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.AUGURY)) {
-            return 1.25;
+            return 125;
         }
-        return 1;
+        return 100;
     }
 
-    private static rangedAttackPrayerBonus(player: Player): number {
+    private static rangedAttackPrayerPercent(player: Player): number {
         if (PrayerHandler.isActivated(player, PrayerHandler.SHARP_EYE)) {
-            return 1.05;
+            return 105;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.HAWK_EYE)) {
-            return 1.10;
+            return 110;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.EAGLE_EYE)) {
-            return 1.15;
+            return 115;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.RIGOUR)) {
-            return 1.20;
+            return 120;
         }
-        return 1;
+        return 100;
     }
 
-    private static magicAttackPrayerBonus(player: Player): number {
+    private static magicAttackPrayerPercent(player: Player): number {
         if (PrayerHandler.isActivated(player, PrayerHandler.MYSTIC_WILL)) {
-            return 1.05;
+            return 105;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.MYSTIC_LORE)) {
-            return 1.10;
+            return 110;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.MYSTIC_MIGHT)) {
-            return 1.15;
+            return 115;
         } else if (PrayerHandler.isActivated(player, PrayerHandler.AUGURY)) {
-            return 1.25;
+            return 125;
         }
-        return 1;
+        return 100;
     }
 
     public static rollAccuracy(entity: any, enemy: any, style: any) {
@@ -186,9 +198,9 @@ export class AccuracyFormulasDpsCalc {
         }
 
         let player = entity.getAsPlayer();
-        let att = Math.floor(
-            player.getSkillManager().getCurrentLevel(Skill.ATTACK) *
-            AccuracyFormulasDpsCalc.meleeAttackPrayerBonus(player)
+        let att = AccuracyFormulasDpsCalc.scalePercent(
+            player.getSkillManager().getCurrentLevel(Skill.ATTACK),
+            AccuracyFormulasDpsCalc.meleeAttackPrayerPercent(player)
         );
 
         let fightStyle = player.getFightType().getStyle();
@@ -198,17 +210,12 @@ export class AccuracyFormulasDpsCalc {
             att += 1;
         att += 8;
 
-        if (CombatEquipment.wearingVoid(player, CombatType.MELEE)) {
-            att = Math.floor(att * 1.1);
+        if (CombatEquipment.wearingVoid(player, CombatType.MELEE)
+            || CombatEquipment.wearingEliteVoid(player, CombatType.MELEE)) {
+            att = AccuracyFormulasDpsCalc.scalePercent(att, 110);
         }
 
-        att = applyMeleeAttackAccuracyModifiers(player, att);
-
-        // Special attack
-        const special = getPlayerCombatSpecial(player);
-        if (player.isSpecialActivated() && special != null) {
-            att *= special.getAccuracyMultiplier();
-        }
+        att = Math.floor(applyMeleeAttackAccuracyModifiers(player, att));
 
         cache.effectiveAttackLevel = att;
         return att;
@@ -249,6 +256,11 @@ export class AccuracyFormulasDpsCalc {
                 attRoll *= maxAtt + 64;
         }
 
+        const special = getPlayerCombatSpecial(player);
+        if (player.isSpecialActivated() && special?.getCombatMethod().type() === CombatType.MELEE) {
+            attRoll = AccuracyFormulasDpsCalc.scaleSpecial(attRoll, special.getAccuracyMultiplier());
+        }
+
         cache.attackMeleeRoll = Math.floor(attRoll);
         return cache.attackMeleeRoll;
     }
@@ -264,9 +276,9 @@ export class AccuracyFormulasDpsCalc {
         }
 
         let player = enemy.getAsPlayer();
-        let def = Math.floor(
-            player.getSkillManager().getCurrentLevel(Skill.DEFENCE) *
-            AccuracyFormulasDpsCalc.defencePrayerBonus(player)
+        let def = AccuracyFormulasDpsCalc.scalePercent(
+            player.getSkillManager().getCurrentLevel(Skill.DEFENCE),
+            AccuracyFormulasDpsCalc.defencePrayerPercent(player)
         );
 
         let fightStyle = player.getFightType().getStyle();
@@ -276,7 +288,7 @@ export class AccuracyFormulasDpsCalc {
             def += 1;
         def += 8;
 
-        def = applyMeleeDefenseModifiers(player, def);
+        def = Math.floor(applyMeleeDefenseModifiers(player, def));
 
         cache.effectiveDefenseLevel = def;
         return def;
@@ -349,9 +361,9 @@ export class AccuracyFormulasDpsCalc {
         }
 
         let player = entity.getAsPlayer();
-        let rngStrength = Math.floor(
-            player.getSkillManager().getCurrentLevel(Skill.RANGED) *
-            AccuracyFormulasDpsCalc.rangedAttackPrayerBonus(player)
+        let rngStrength = AccuracyFormulasDpsCalc.scalePercent(
+            player.getSkillManager().getCurrentLevel(Skill.RANGED),
+            AccuracyFormulasDpsCalc.rangedAttackPrayerPercent(player)
         );
 
         let fightStyle = player.getFightType().getStyle();
@@ -359,11 +371,13 @@ export class AccuracyFormulasDpsCalc {
             rngStrength += 3;
         rngStrength += 8;
 
-        if (CombatEquipment.wearingVoid(player, CombatType.RANGED)) {
-            rngStrength = Math.floor(rngStrength * 1.1);
+        if (CombatEquipment.wearingEliteVoid(player, CombatType.RANGED)) {
+            rngStrength = AccuracyFormulasDpsCalc.scaleRatio(rngStrength, 1125, 1000);
+        } else if (CombatEquipment.wearingVoid(player, CombatType.RANGED)) {
+            rngStrength = AccuracyFormulasDpsCalc.scalePercent(rngStrength, 110);
         }
 
-        rngStrength = applyRangedAttackAccuracyModifiers(player, rngStrength);
+        rngStrength = Math.floor(applyRangedAttackAccuracyModifiers(player, rngStrength));
 
         //    if (dragonHunter(input))
         //        rngStrength =
@@ -384,6 +398,14 @@ export class AccuracyFormulasDpsCalc {
 
         attRoll *= (accuracyBonus + 64);
 
+        if (entity.isPlayer()) {
+            const player = entity.getAsPlayer();
+            const special = getPlayerCombatSpecial(player);
+            if (player.isSpecialActivated() && special?.getCombatMethod().type() === CombatType.RANGED) {
+                attRoll = AccuracyFormulasDpsCalc.scaleSpecial(attRoll, special.getAccuracyMultiplier());
+            }
+        }
+
         cache.attackRangedRoll = Math.floor(attRoll);
         return cache.attackRangedRoll;
     }
@@ -401,14 +423,10 @@ export class AccuracyFormulasDpsCalc {
         }
 
         let player = entity.getAsPlayer();
-        let mag = Math.floor(
-            player.getSkillManager().getCurrentLevel(Skill.MAGIC) *
-            AccuracyFormulasDpsCalc.magicAttackPrayerBonus(player)
+        let mag = AccuracyFormulasDpsCalc.scalePercent(
+            player.getSkillManager().getCurrentLevel(Skill.MAGIC),
+            AccuracyFormulasDpsCalc.magicAttackPrayerPercent(player)
         );
-
-        if (CombatEquipment.wearingVoid(player, CombatType.MAGIC)) {
-            mag = Math.floor(mag * 1.45);
-        }
 
         // +8 base, +1 style. Magic's style bonus is always 1 regardless of the
         // weapon's selected melee stance - a caster's FightType is still their
@@ -416,7 +434,12 @@ export class AccuracyFormulasDpsCalc {
         // Accurate a free +3 magic attack.
         mag += 9;
 
-        mag = applyMagicAttackAccuracyModifiers(player, mag);
+        if (CombatEquipment.wearingVoid(player, CombatType.MAGIC)
+            || CombatEquipment.wearingEliteVoid(player, CombatType.MAGIC)) {
+            mag = AccuracyFormulasDpsCalc.scalePercent(mag, 145);
+        }
+
+        mag = Math.floor(applyMagicAttackAccuracyModifiers(player, mag));
 
         cache.effectiveMagicLevel = mag;
         return mag;
@@ -433,15 +456,19 @@ export class AccuracyFormulasDpsCalc {
             defLevel = enemy.getAsNpc().getCurrentDefinition().getStats()[4] + 9;
         } else {
             const player = enemy.getAsPlayer();
-            const magicLevel = Math.floor(
-                player.getSkillManager().getCurrentLevel(Skill.MAGIC) *
-                AccuracyFormulasDpsCalc.magicAttackPrayerBonus(player)
+            const magicLevel = AccuracyFormulasDpsCalc.scalePercent(
+                player.getSkillManager().getCurrentLevel(Skill.MAGIC),
+                AccuracyFormulasDpsCalc.magicAttackPrayerPercent(player)
             );
-            const defenceLevel = Math.floor(
-                player.getSkillManager().getCurrentLevel(Skill.DEFENCE) *
-                AccuracyFormulasDpsCalc.defencePrayerBonus(player)
+            const defenceLevel = AccuracyFormulasDpsCalc.scalePercent(
+                player.getSkillManager().getCurrentLevel(Skill.DEFENCE),
+                AccuracyFormulasDpsCalc.defencePrayerPercent(player)
             );
-            defLevel = Math.floor((magicLevel * 0.7) + (defenceLevel * 0.3)) + 8;
+            defLevel = AccuracyFormulasDpsCalc.scaleRatio(
+                magicLevel * 7 + defenceLevel * 3,
+                1,
+                10
+            ) + 8;
             defLevel = applyMagicDefenseModifiers(player, defLevel);
         }
 
@@ -465,9 +492,17 @@ export class AccuracyFormulasDpsCalc {
         let attRoll = AccuracyFormulasDpsCalc.effectiveMagicLevel(entity);
         attRoll *= (accuracyBonus + 64);
 
+        if (entity.isPlayer()) {
+            const player = entity.getAsPlayer();
+            const special = getPlayerCombatSpecial(player);
+            if (player.isSpecialActivated() && special?.getCombatMethod().type() === CombatType.MAGIC) {
+                attRoll = AccuracyFormulasDpsCalc.scaleSpecial(attRoll, special.getAccuracyMultiplier());
+            }
+        }
+
         const demonbaneMultiplier = (entity.getCombat().getSelectedSpell() as any)?.demonbaneAccuracyMultiplier?.(entity);
         if (typeof demonbaneMultiplier === "number") {
-            attRoll *= demonbaneMultiplier;
+            attRoll = AccuracyFormulasDpsCalc.scaleSpecial(attRoll, demonbaneMultiplier);
         }
 
         cache.attackMagicRoll = Math.floor(attRoll);

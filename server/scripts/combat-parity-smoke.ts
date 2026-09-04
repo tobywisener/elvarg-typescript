@@ -13,6 +13,7 @@ import { World } from "../src/main/typescript/elvarg/game/World";
 import { Combat } from "../src/main/typescript/elvarg/game/content/combat/Combat";
 import { CombatFactory } from "../src/main/typescript/elvarg/game/content/combat/CombatFactory";
 import { AccuracyFormulasDpsCalc } from "../src/main/typescript/elvarg/game/content/combat/formula/AccuracyFormulasDpsCalc";
+import { DamageFormulas } from "../src/main/typescript/elvarg/game/content/combat/formula/DamageFormulas";
 import { CombatType } from "../src/main/typescript/elvarg/game/content/combat/CombatType";
 import { HitDamage } from "../src/main/typescript/elvarg/game/content/combat/hit/HitDamage";
 import { HitMask } from "../src/main/typescript/elvarg/game/content/combat/hit/HitMask";
@@ -31,6 +32,56 @@ const originalRollAccuracy = AccuracyFormulasDpsCalc.rollAccuracy;
 const originalExecuteHit = CombatFactory.executeHit;
 
 try {
+    // --- integer combat arithmetic ------------------------------------------
+    assert.equal(
+        (DamageFormulas as any).scalePercent(100, 115),
+        115,
+        "a 15% multiplier must not become 114 through binary floating point"
+    );
+    assert.equal(
+        (AccuracyFormulasDpsCalc as any).scaleRatio(99, 1125, 1000),
+        111,
+        "elite Void's 12.5% multiplier is floored at its own step"
+    );
+    assert.equal(
+        (DamageFormulas as any).scaleSpecial(10, 1.15),
+        11,
+        "special multipliers apply after the base max hit is floored"
+    );
+
+    for (let attackRoll = 0; attackRoll < 50; attackRoll++) {
+        for (let defenceRoll = 0; defenceRoll < 50; defenceRoll++) {
+            let wins = 0;
+            for (let attack = 0; attack <= attackRoll; attack++) {
+                for (let defence = 0; defence <= defenceRoll; defence++) {
+                    if (attack > defence) wins++;
+                }
+            }
+            const total = (attackRoll + 1) * (defenceRoll + 1);
+            const expectedChance = attackRoll > defenceRoll
+                ? 1 - ((defenceRoll + 2) / (2 * (attackRoll + 1)))
+                : attackRoll / (2 * (defenceRoll + 1));
+            assert.equal(
+                AccuracyFormulasDpsCalc.hitChance(attackRoll, defenceRoll),
+                expectedChance,
+                "the reported hit chance must use the OSRS branch formula"
+            );
+            if (attackRoll > defenceRoll) {
+                assert.equal(
+                    wins * 2 * (attackRoll + 1),
+                    (2 * attackRoll - defenceRoll) * total,
+                    "inclusive accuracy rolls must match the OSRS hit-chance formula"
+                );
+            } else {
+                assert.equal(
+                    wins * 2 * (defenceRoll + 1),
+                    attackRoll * total,
+                    "inclusive accuracy rolls must match the OSRS hit-chance formula"
+                );
+            }
+        }
+    }
+
     // --- NPC defence bonuses are actually read -------------------------------
     // stats[2] is the defence level, stats[10..14] the per-style defence bonuses
     // in BonusManager.DEFENCE_* order. Both used to be ignored for NPCs.
