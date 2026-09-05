@@ -6,6 +6,7 @@ import { FightStyle } from "../FightStyle";
 import { Mobile } from "../../../entity/impl/Mobile";
 import type { Player } from "../../../entity/impl/player/Player";
 import type { NPC } from "../../../entity/impl/npc/NPC";
+import type { CombatSpell } from "../magic/CombatSpell";
 import { applyMagicHitModifiers, applyMeleeHitModifiers } from "../EquipmentEffects";
 import { CombatEquipment } from "../CombatEquipment";
 
@@ -94,7 +95,7 @@ export class DamageFormulas {
         return effectiveLevel;
     }
 
-    public static calculateMaxMeleeHit(entity: Mobile): number {
+    public static calculateMaxMeleeHit(entity: Mobile, includeSpecial?: boolean): number {
         let maxHit: number;
         if (entity.isPlayer()) {
             let player = entity.getAsPlayer();
@@ -106,7 +107,10 @@ export class DamageFormulas {
             );
 
             const special = getPlayerCombatSpecial(player);
-            if (player.isSpecialActivated() && special != null) {
+            if (
+                (includeSpecial ?? player.isSpecialActivated()) &&
+                special?.getCombatMethod().type() === CombatType.MELEE
+            ) {
                 maxHit = DamageFormulas.scaleSpecial(maxHit, special.getStrengthMultiplier());
             }
 
@@ -117,9 +121,9 @@ export class DamageFormulas {
         return Math.floor(adjusted);
     }
 
-    public static getMagicMaxhit(c: Mobile): number {
+    public static getMagicMaxhit(c: Mobile, spellOverride?: CombatSpell | null): number {
         let maxHit = 0;
-        const spell = c.getCombat().getSelectedSpell();
+        const spell = spellOverride ?? c.getCombat().getSelectedSpell();
 
         if (spell && spell.maximumHit() > 0) {
             maxHit = spell.maximumHit();
@@ -130,7 +134,7 @@ export class DamageFormulas {
         }
 
         const { CombatSpells } = require("../magic/CombatSpells") as typeof import("../magic/CombatSpells");
-        maxHit = CombatSpells.applyChargeMaxHit(c, maxHit);
+        maxHit = CombatSpells.applyChargeMaxHit(c, maxHit, spell);
 
         maxHit = DamageFormulas.applyMagicDamageBonus(c, maxHit);
 
@@ -140,6 +144,34 @@ export class DamageFormulas {
         }
 
         return Math.floor(applyMagicHitModifiers(c, maxHit));
+    }
+
+    public static getVolatileNightmareStaffBaseMaxHit(player: Player): number {
+        return Math.min(
+            Math.floor((player.getSkillManager().getCurrentLevel(Skill.MAGIC) * 263) / 449 + 1),
+            58
+        );
+    }
+
+    public static calculateMaxMagicHit(entity: Mobile, spellOverride?: CombatSpell | null, includeSpecial?: boolean): number {
+        if (entity.isPlayer()) {
+            const player = entity.getAsPlayer();
+            const special = getPlayerCombatSpecial(player);
+            const weaponId = player.getEquipment().getWeapon().getId();
+            const { ItemIdentifiers } = require("../../../../util/ItemIdentifiers") as typeof import("../../../../util/ItemIdentifiers");
+            if (
+                (includeSpecial ?? player.isSpecialActivated()) &&
+                special?.getCombatMethod().type() === CombatType.MAGIC &&
+                weaponId === ItemIdentifiers.VOLATILE_NIGHTMARE_STAFF
+            ) {
+                return DamageFormulas.applyMagicDamageBonus(
+                    player,
+                    DamageFormulas.getVolatileNightmareStaffBaseMaxHit(player)
+                );
+            }
+        }
+
+        return DamageFormulas.getMagicMaxhit(entity, spellOverride);
     }
 
     private static effectiveRangedStrength(player: Player): number {
@@ -166,7 +198,7 @@ export class DamageFormulas {
         return effectiveLevel;
     }
 
-    private static maximumRangeHitDpsCalc(player: Player) {
+    private static maximumRangeHitDpsCalc(player: Player, includeSpecial?: boolean) {
         let strengthBonus = player.getBonusManager().getOtherBonus()[BonusManager.RANGED_STRENGTH];
         let maxHit = DamageFormulas.scaleRatio(
             DamageFormulas.effectiveRangedStrength(player) * (strengthBonus + 64) + 320,
@@ -175,8 +207,9 @@ export class DamageFormulas {
         );
 
         const special = getPlayerCombatSpecial(player);
+        const useSpecial = includeSpecial ?? player.isSpecialActivated();
         if (
-            player.isSpecialActivated() &&
+            useSpecial &&
             special != null &&
             special.getCombatMethod().type() == CombatType.RANGED
         ) {
@@ -192,7 +225,7 @@ export class DamageFormulas {
     @param entity the entity to calculate the maximum hit for.
     @return the maximum ranged hit that this entity can deal.
     */
-    public static calculateMaxRangedHit(entity: Mobile) {
+    public static calculateMaxRangedHit(entity: Mobile, includeSpecial?: boolean) {
         if (entity.isNpc()) {
             let npc = entity as unknown as NPC;
             return npc.getCurrentDefinition().getMaxHit();
@@ -200,7 +233,7 @@ export class DamageFormulas {
 
         let player = entity as Player;
 
-        return DamageFormulas.maximumRangeHitDpsCalc(player);
+        return DamageFormulas.maximumRangeHitDpsCalc(player, includeSpecial);
     }
 
     public static applyMagicDamageBonus(entity: Mobile, maxHit: number): number {

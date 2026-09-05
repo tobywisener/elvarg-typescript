@@ -1,7 +1,6 @@
 const { GameConstants } = require("../../src/main/typescript/elvarg/game/GameConstants");
 const { Misc } = require("../../src/main/typescript/elvarg/util/Misc");
 const { PasswordUtil } = require("../../src/main/typescript/elvarg/util/PasswordUtil");
-const { DamageFormulas } = require("../../src/main/typescript/elvarg/game/content/combat/formula/DamageFormulas");
 const { Item } = require("../../src/main/typescript/elvarg/game/model/Item");
 const { SkullType } = require("../../src/main/typescript/elvarg/game/model/SkullType");
 const { DonatorRights } = require("../../src/main/typescript/elvarg/game/model/rights/DonatorRights");
@@ -188,40 +187,6 @@ module.exports = {
     api.registerCommand("lockxp", ({ player }) => {
       player.setExperienceLocked(!player.experienceLockedReturn());
       player.getPacketSender().sendMessage(`Lock: ${player.experienceLockedReturn()}`);
-      return true;
-    });
-
-    api.registerCommand("maxhit", ({ player, parts }) => {
-      const playerName = parts.length === 2 ? parts[1] : null;
-      if (playerName) {
-        const target = World.getPlayerByName(playerName);
-        if (!target) {
-          player.getPacketSender().sendMessage(`Cannot find player: ${playerName}`);
-          return true;
-        }
-        const maxHit = DamageFormulas.calculateMaxMeleeHit(target);
-        player.getPacketSender().sendMessage(`${playerName}'s current max hit is: ${maxHit}`);
-        return true;
-      }
-      const maxHit = DamageFormulas.calculateMaxMeleeHit(player);
-      player.getPacketSender().sendMessage(`Your current max hit is: ${maxHit}`);
-      return true;
-    });
-
-    api.registerCommand("mh", ({ player, parts }) => {
-      const playerName = parts.length === 2 ? parts[1] : null;
-      if (playerName) {
-        const target = World.getPlayerByName(playerName);
-        if (!target) {
-          player.getPacketSender().sendMessage(`Cannot find player: ${playerName}`);
-          return true;
-        }
-        const maxHit = DamageFormulas.calculateMaxMeleeHit(target);
-        player.getPacketSender().sendMessage(`${playerName}'s current max hit is: ${maxHit}`);
-        return true;
-      }
-      const maxHit = DamageFormulas.calculateMaxMeleeHit(player);
-      player.getPacketSender().sendMessage(`Your current max hit is: ${maxHit}`);
       return true;
     });
 

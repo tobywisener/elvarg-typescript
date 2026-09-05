@@ -74,6 +74,7 @@ import { SpellTeleports } from "../game/content/combat/magic/SpellTeleports";
 const OBJECT_ACTIONS = new ObjectActionPacketListener();
 const NPC_ACTIONS = new NPCOptionPacketListener();
 const MAGIC_ITEMS = new MagicOnItemPacketListener();
+const CLOSE_ON_INTERFACE_CLOSE_ATTRIBUTE = "interface:close-on-interface-close";
 const WORLD_INTERACTIONS = new Set([
   "move",
   "teleport",
@@ -190,7 +191,10 @@ class ClientConnection {
       if (this.player) LunarSpells.expireSpellbookSwap(this.player);
       if (this.player && WORLD_INTERACTIONS.has(packet.type)) {
         if (this.player.getStatus() === PlayerStatus.TRADING) continue;
-        if (packet.type !== "move" || this.player.getMovementQueue().getMobility().canMove()) {
+        if (
+          (packet.type !== "move" || this.player.getMovementQueue().getMobility().canMove()) &&
+          !(packet.type === "inventory_action" && EquipPacketListener.preservesInterfaceOnEquip(this.player))
+        ) {
           this.player.closeInterruptibleInterfaces();
         }
       }
@@ -562,6 +566,12 @@ class ClientConnection {
           continue;
         case "interface_close":
           if (this.player) {
+            const closeOverlayId = this.player.getAttribute?.(CLOSE_ON_INTERFACE_CLOSE_ATTRIBUTE);
+            if (typeof closeOverlayId === "number" && Number.isInteger(closeOverlayId)) {
+              this.player.setAttribute(CLOSE_ON_INTERFACE_CLOSE_ATTRIBUTE, null);
+              this.player.getPacketSender().closeInterface(closeOverlayId);
+              continue;
+            }
             const hadSomethingOpen =
               this.player.getStatus() !== PlayerStatus.NONE ||
               this.player.getInterfaceId() >= 0 ||

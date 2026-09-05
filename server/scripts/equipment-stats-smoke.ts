@@ -53,6 +53,7 @@ const inventory = {
 };
 
 let interfaceId = -1;
+let preserveOnEquip = -1;
 let bonusUpdates = 0;
 const bonusManager = {
   getAttackBonus: () => [-4, 8, 0, 12, 16],
@@ -64,6 +65,11 @@ const player: any = {
   getPacketSender: () => sender,
   setInterfaceId: (id: number) => { interfaceId = id; },
   getInterfaceId: () => interfaceId,
+  setAttribute: (name: string, value: number) => {
+    if (name === EquipPacketListener.PRESERVE_INTERFACE_ON_EQUIP_ATTRIBUTE) preserveOnEquip = value;
+  },
+  getAttribute: (name: string) =>
+    name === EquipPacketListener.PRESERVE_INTERFACE_ON_EQUIP_ATTRIBUTE ? preserveOnEquip : null,
   getInventory: () => inventory,
   getEquipment: () => ({ getItems: () => equipmentItems }),
   getBonusManager: () => bonusManager,
@@ -95,6 +101,8 @@ EquipmentStats.register({
 assert.equal(Equipment.EQUIPMENT_SCREEN_INTERFACE_ID, 84);
 assert.equal(handlers.get(OPEN_BUTTON)?.({ player }), true);
 assert.equal(interfaceId, 84);
+assert.equal(preserveOnEquip, 84, "equipment stats must stay open when equipping");
+assert.equal(EquipPacketListener.preservesInterfaceOnEquip(player), true);
 assert.deepEqual(
   sent.filter((entry) => entry.call === "sendSubInterface").map((entry) => entry.args),
   [

@@ -3,7 +3,6 @@ import { CombatType } from "../../../CombatType";
 import { PendingHit } from "../../../hit/PendingHit";
 import { Mobile } from "../../../../../entity/impl/Mobile";
 import { CombatSpecial } from "../../../CombatSpecial";
-import { Skill } from "../../../../../model/Skill";
 import { Animation } from "../../../../../model/Animation";
 import { Misc } from "../../../../../../util/Misc";
 import { ItemIdentifiers } from "../../../../../../util/ItemIdentifiers";
@@ -16,10 +15,7 @@ export class VolatileNightmareStaffCombatMethod extends CombatMethod {
         const hit = new PendingHit(character, target, this, 2);
         if (hit.isAccurate() && character.isPlayer()) {
             const player = character.getAsPlayer();
-            const maxHit = Math.min(
-                Math.floor((player.getSkillManager().getCurrentLevel(Skill.MAGIC) * 263) / 449 + 1),
-                58
-            );
+            const maxHit = DamageFormulas.getVolatileNightmareStaffBaseMaxHit(player);
             const hitRoll = Misc.randomInclusive(1, maxHit);
             hit.setTotalDamage(DamageFormulas.applyMagicDamageBonus(character, hitRoll));
         }

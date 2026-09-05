@@ -129,6 +129,8 @@
     "test:content-api": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/content-api-smoke.ts",
     "test:presets": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/presets-interface-smoke.ts",
     "test:commands-interface": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/commands-interface-smoke.ts",
+    "test:equipment-stats": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/equipment-stats-smoke.ts",
+    "test:max-hits-interface": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/max-hits-interface-smoke.ts",
     "test:teleports-interface": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/teleports-interface-smoke.ts",
     "test:ring-of-wealth": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/ring-of-wealth-plugin-smoke.ts",
     "test:rejuvenation-pool": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/rejuvenation-pool-smoke.ts",

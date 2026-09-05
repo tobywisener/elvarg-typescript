@@ -35,6 +35,11 @@ const getAutocasting = () =>
 
 export class EquipPacketListener {
   private static readonly EQUIPMENT_SLOTS = [0, 1, 2, 3, 4, 5, 7, 9, 10, 12, 13];
+  public static readonly PRESERVE_INTERFACE_ON_EQUIP_ATTRIBUTE = "interface:preserve-on-equip";
+
+  public static preservesInterfaceOnEquip(player: any): boolean {
+    return player?.getAttribute?.(this.PRESERVE_INTERFACE_ON_EQUIP_ATTRIBUTE) === player?.getInterfaceId?.();
+  }
 
   public static resolveEquipmentSlot(groupId: number, childId: number): number {
     const firstChild = groupId === 387 ? 15 : groupId === 84 ? 10 : -1;
@@ -101,7 +106,8 @@ export class EquipPacketListener {
 
     if (
       player.getInterfaceId() > 0 &&
-      player.getInterfaceId() !== Equipment.EQUIPMENT_SCREEN_INTERFACE_ID
+      player.getInterfaceId() !== Equipment.EQUIPMENT_SCREEN_INTERFACE_ID &&
+      !EquipPacketListener.preservesInterfaceOnEquip(player)
     ) {
       player.getPacketSender().sendInterfaceRemoval();
     }

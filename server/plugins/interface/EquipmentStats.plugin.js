@@ -135,6 +135,7 @@ function open(player) {
   }
 
   player.setInterfaceId(EQUIPMENT_STATS_INTERFACE_ID);
+  player.setAttribute(EquipPacketListener.PRESERVE_INTERFACE_ON_EQUIP_ATTRIBUTE, EQUIPMENT_STATS_INTERFACE_ID);
   player
     .getPacketSender()
     .sendVarbit(12393, 1)

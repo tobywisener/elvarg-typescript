@@ -244,12 +244,12 @@ export class CombatSpells {
         return name?.trim().toLowerCase() === "charge" && this.CHARGE.cast(player);
     }
 
-    public static applyChargeMaxHit(caster: Mobile, maxHit: number): number {
+    public static applyChargeMaxHit(caster: Mobile, maxHit: number, spell?: CombatSpell | null): number {
         if (!caster.isPlayer() || Number(caster.getAttribute(this.CHARGE_UNTIL) ?? 0) <= Date.now()) {
             return maxHit;
         }
         const player = caster.getAsPlayer();
-        const capes = this.GOD_SPELL_CAPES.get(player.getCombat().getSelectedSpell()?.spellId());
+        const capes = this.GOD_SPELL_CAPES.get((spell ?? player.getCombat().getSelectedSpell())?.spellId());
         return capes?.has(player.getEquipment().get(Equipment.CAPE_SLOT).getId()) ? 30 : maxHit;
     }
     public static WIND_STRIKE = new CombatNormalSpell({
