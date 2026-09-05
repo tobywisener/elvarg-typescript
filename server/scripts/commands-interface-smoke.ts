@@ -1,7 +1,7 @@
 import { strict as assert } from "assert";
 
 const Commands = require("../plugins/interface/Commands.plugin");
-const { GROUP_ID, COMPONENT, ROW_COUNT, LIST_CONTENT_HEIGHT, uid } = Commands._test;
+const { COMMANDS, GROUP_ID, COMPONENT, ROW_COUNT, LIST_CONTENT_HEIGHT, uid } = Commands._test;
 
 const sent: Array<{ call: string; args: any[] }> = [];
 const sender: any = new Proxy({}, { get: (_target, call: string) => (...args: any[]) => {
@@ -37,4 +37,10 @@ assert.match(rows, /Player commands/);
 assert.match(rows, /Moderator commands/);
 assert.match(rows, /Administrator commands/);
 assert.match(rows, /Developer commands/);
+assert.ok(COMMANDS.developer.every((entry: string) => entry.startsWith("::") && entry.includes(" - ")));
+assert.ok(COMMANDS.developer.every((entry: string) => !entry.includes(" / ")));
+assert.ok(
+  Commands._test.commandRows({ getRights: () => ({ getId: () => 4 }) }).length <= ROW_COUNT,
+  "every developer command must fit in the command list",
+);
 console.log(`commands interface ok: ${ROW_COUNT} scroll rows`);
