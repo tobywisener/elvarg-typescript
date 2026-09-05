@@ -44,16 +44,21 @@ MaxHits.register({
   registerCommand: (name: string, handler: (event: any) => boolean) => commands.set(name, handler),
   onPlayerProcess: (handler: (event: any) => void) => (processPlayer = handler),
 });
-
-const INTERFACE_DEFINITION = getInterfaceDefinition();
+getInterfaceDefinition();
 const SPELLS = getSpells();
 assert.equal(definition.groupId, GROUP_ID);
 assert.ok(definition.widgets.length > 10, "the max-hit interface needs its own widget group");
 const root = definition.widgets.find((widget: any) => widget.fileId === COMPONENT.ROOT);
 assert.deepEqual(
-  [root.rawWidth, root.rawHeight, root.widthMode, root.heightMode],
-  [494, 316, 0, 0],
-  "the HUD overlay must retain its compact fixed size",
+  [root.rawWidth, root.rawHeight, root.widthMode, root.heightMode, root.rawX, root.rawY, root.xPositionMode, root.yPositionMode],
+  [836, 420, 0, 0, 0, 0, 1, 1],
+  "the HUD overlay must be centered around all four columns",
+);
+const playerModel = definition.widgets.find((widget: any) => widget.fileId === COMPONENT.PLAYER_MODEL);
+assert.deepEqual(
+  [playerModel.type, playerModel.contentType, playerModel.rawY, playerModel.rawWidth, playerModel.rawHeight, playerModel.modelZoom],
+  [6, 328, 240, 182, 262, 500],
+  "the player panel must render the current player model",
 );
 assert.ok(definition.scroll?.length === 1, "the magic spell list must be scrollable");
 assert.ok(SPELLS.length > 0, "the magic spell list must include combat spells");
@@ -96,8 +101,8 @@ commands.get("maxrangehit")!({ player });
 assert.equal(interfaceId, -1, "max hits must not become a modal interface");
 assert.equal(closeOverlayId, GROUP_ID, "the title-bar close control must own the max-hit overlay");
 assert.ok(
-  subInterfaces.some(([targetUid, groupId, type]) => targetUid === ((161 << 16) | 8) && groupId === GROUP_ID && type === 1),
-  "max hits must mount as a non-blocking HUD overlay",
+  subInterfaces.some(([targetUid, groupId, type]) => targetUid === ((161 << 16) | 92) && groupId === GROUP_ID && type === 1),
+  "max hits must mount as a non-blocking gameframe overlay",
 );
 assert.deepEqual(
   strings.filter(([, component]) => [
