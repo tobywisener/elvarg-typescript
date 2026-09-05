@@ -1,7 +1,8 @@
-import { Autocasting } from '../content/combat/magic/Autocasting';
 import { Player } from '../entity/impl/player/Player';
-import { TeleportType } from '../model/teleportation/TeleportType';
+import { TeleportType } from "./teleportation/TeleportType";
 import { Skill } from './Skill';
+
+const getAutocasting = () => require('../content/combat/magic/Autocasting').Autocasting as typeof import('../content/combat/magic/Autocasting').Autocasting;
 
 
 export class MagicSpellbook {
@@ -49,7 +50,7 @@ export class MagicSpellbook {
         player.setSpellbook(book);
 
         //Reset autocast
-        Autocasting.setAutocast(player, null);
+        getAutocasting().setAutocast(player, null);
 
         //Send notification message
         player.getPacketSender().sendMessage("You have changed your magic spellbook.")
