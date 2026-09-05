@@ -134,6 +134,7 @@
     "test:teleports-interface": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/teleports-interface-smoke.ts",
     "test:ring-of-wealth": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/ring-of-wealth-plugin-smoke.ts",
     "test:rejuvenation-pool": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/rejuvenation-pool-smoke.ts",
+    "test:bot-preset-pool": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/bot-preset-pool-smoke.ts",
     "test:occult-altar": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/occult-altar-smoke.ts",
     "test:hud-interfaces": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/hud-interface-smoke.ts",
     "test:player-audio": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/player-audio-smoke.ts",

@@ -97,6 +97,7 @@ const GLOBAL_PRESETS = [
   PredefinedPresets.MAIN_RUNE_126,
   PredefinedPresets.MAIN_MELEE_126,
   PredefinedPresets.MAIN_RCB_TANK_126,
+  PredefinedPresets.MAIN_RCB_TANK_70,
   PredefinedPresets.DHAROK_126,
   PredefinedPresets.MAIN_BARRAGE_126,
   PredefinedPresets.VOID_RANGER_126,

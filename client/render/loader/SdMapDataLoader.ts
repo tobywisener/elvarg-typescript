@@ -1258,7 +1258,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
         textureIds = textureLoader.getTextureIds().filter((id) => textureLoader.isSd(id));
         textureIds = textureIds.slice(0, 2047);
         for (let i = 0; i < textureIds.length; i++) {
-            textureIdIndexMap.set(textureIds[i], i);
+            textureIdIndexMap.set(textureIds[i], i + 1);
         }
 
         const borderSize = 6;
@@ -2304,7 +2304,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
         textureIds = textureIds.slice(0, 2047);
         const textureIdIndexMap = new Map<number, number>();
         for (let i = 0; i < textureIds.length; i++) {
-            textureIdIndexMap.set(textureIds[i], i);
+            textureIdIndexMap.set(textureIds[i], i + 1);
         }
 
         const borderSize = 6;

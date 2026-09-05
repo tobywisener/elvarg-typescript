@@ -2,6 +2,7 @@
 
 const { applyPreset } = require("../../../interface/Presets.plugin");
 const { Presetable } = require("../../../../src/main/typescript/elvarg/game/content/presets/Presetable");
+const { PredefinedPresets } = require("../../../../src/main/typescript/elvarg/game/content/presets/PredefinedPresets");
 const { CombatSpells } = require("../../../../src/main/typescript/elvarg/game/content/combat/magic/CombatSpells");
 const { Item } = require("../../../../src/main/typescript/elvarg/game/model/Item");
 const { MagicSpellbook } = require("../../../../src/main/typescript/elvarg/game/model/MagicSpellbook");
@@ -140,11 +141,71 @@ function weightedPick(definitions, rng = Math.random) {
   return definitions[definitions.length - 1] ?? null;
 }
 
-function choose(values) {
+function choose(values, rng = Math.random) {
   if (!Array.isArray(values) || values.length === 0) {
     return null;
   }
-  return values[Math.floor(Math.random() * values.length)] ?? null;
+  return values[Math.floor(rng() * values.length)] ?? null;
+}
+
+const BOT_PRESET_GROUPS = Object.freeze([
+  Object.freeze({
+    id: "main_126",
+    weight: 30,
+    presetKeys: Object.freeze([
+      "MAIN_HYBRID_126", "MAIN_RUNE_126", "MAIN_MELEE_126", "MAIN_RCB_TANK_126", "DHAROK_126",
+      "MAIN_BARRAGE_126", "VOID_RANGER_126", "VOID_MELEE_126", "KARILS_TANK_126", "MAIN_TRIBRID_126",
+    ]),
+  }),
+  Object.freeze({
+    id: "pure_1_def",
+    weight: 30,
+    presetKeys: Object.freeze([
+      "DDS_PURE_M_73", "DDS_PURE_R_73", "G_MAULER_70", "NH_PURE_83", "OBBY_MAULER_57",
+    ]),
+  }),
+  Object.freeze({
+    id: "tank_45_def",
+    weight: 15,
+    presetKeys: Object.freeze(["ATT_60_ZERKER_94", "ATT_70_ZERKER_97"]),
+  }),
+  Object.freeze({
+    id: "tank_70_def",
+    weight: 15,
+    presetKeys: Object.freeze(["MAIN_RCB_TANK_70"]),
+  }),
+  Object.freeze({ id: "random", weight: 10, presetKeys: Object.freeze([]) }),
+]);
+
+function selectBotPreset(state, rng = Math.random) {
+  const pvp = state?.pvp;
+  if (pvp?.presetPoolEnabled !== true) {
+    return null;
+  }
+  const group =
+    BOT_PRESET_GROUPS.find((entry) => entry.id === pvp.presetPoolGroup) ??
+    weightedPick(BOT_PRESET_GROUPS, rng);
+  if (!group) {
+    return null;
+  }
+  pvp.presetPoolGroup = group.id;
+  if (group.id === "random") {
+    return null;
+  }
+  const presetKey = group.presetKeys.includes(pvp.presetPoolPresetKey)
+    ? pvp.presetPoolPresetKey
+    : choose(group.presetKeys, rng);
+  const preset = PredefinedPresets[presetKey];
+  if (!preset) {
+    return null;
+  }
+  pvp.presetPoolPresetKey = presetKey;
+  return {
+    preset,
+    archetypeId: `preset:${presetKey}`,
+    profileId: pvp.profileId ?? "standard",
+    loadoutId: pvp.loadoutId ?? "edge_main_melee",
+  };
 }
 
 function randomBetween(min, max) {
@@ -3217,7 +3278,7 @@ function getArchetypeChoices(loadoutId) {
     .filter((entry) => entry != null);
 }
 
-function buildGeneratedPreset(player, state) {
+function buildRandomPvpPreset(player, state) {
   const loadoutId = state?.pvp?.loadoutId ?? "edge_main_melee";
   const profile = getPvpProfile(state?.pvp?.profileId);
   const choices = getArchetypeChoices(loadoutId).filter((entry) =>
@@ -3257,6 +3318,10 @@ function buildGeneratedPreset(player, state) {
     profileId: profile?.id ?? "standard",
     loadoutId,
   };
+}
+
+function buildGeneratedPreset(player, state) {
+  return selectBotPreset(state) ?? buildRandomPvpPreset(player, state);
 }
 
 function applyGeneratedPvpLoadout(player, state, options = {}) {
@@ -3355,5 +3420,7 @@ function applyGeneratedPvpLoadout(player, state, options = {}) {
 }
 
 module.exports = {
+  BOT_PRESET_GROUPS,
+  selectBotPreset,
   applyGeneratedPvpLoadout,
 };

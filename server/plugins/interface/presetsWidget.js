@@ -86,7 +86,7 @@ const BUTTON_WIDTH = Math.floor(
 
 // One list for every preset: the predefined ones first, then the player's own slots.
 const PRESET_ROW_START = 200;
-const GLOBAL_ROW_COUNT = 17;
+const GLOBAL_ROW_COUNT = 18;
 const CUSTOM_ROW_COUNT = 10;
 const PRESET_ROW_COUNT = GLOBAL_ROW_COUNT + CUSTOM_ROW_COUNT;
 

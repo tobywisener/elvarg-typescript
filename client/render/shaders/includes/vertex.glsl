@@ -44,7 +44,7 @@ Vertex decodeVertex(uint v0, uint v1, uint v2, float brightness, vec4 actorHslOv
     float y = -float(int((v1) & 0x7FFFu) - 0x4000);
     int hsl = int((v1 >> 15u) & 0xFFFFu);
     float isTextured = float((v1 >> 31) & 0x1u);
-    float textureId = float(((hsl >> 7) | int(((v2 >> 5u) & 0x1u) << 9u)) + 1) * isTextured;
+    float textureId = float((hsl >> 7) | int(((v2 >> 5u) & 0x1u) << 9u)) * isTextured;
 
     // Apply per-actor HSL override (poison/freeze/venom tint) before scene override.
     // Reference: Actor.colorOverride applied at model level before scene rasterization

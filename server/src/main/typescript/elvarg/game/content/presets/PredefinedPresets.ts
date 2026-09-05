@@ -255,6 +255,15 @@ export class PredefinedPresets {
         true
     );
 
+    public static MAIN_RCB_TANK_70: Presetable = new Presetable(
+        "70 Def Tank",
+        PredefinedPresets.MAIN_RCB_TANK_126.getInventory(),
+        PredefinedPresets.MAIN_RCB_TANK_126.getEquipment(),
+        [99, 70, 99, 99, 99, 99, 99],
+        MagicSpellbook.LUNAR,
+        true
+    );
+
     public static DHAROK_126: Presetable = new Presetable("Dharok", [
         new Item(ItemIdentifiers.DRAGON_DAGGER_P_PLUS_PLUS_), new Item(ItemIdentifiers.SARADOMIN_BREW_4_), new Item(ItemIdentifiers.SUPER_RESTORE_4_), new Item(ItemIdentifiers.SUPER_RESTORE_4_),
         new Item(ItemIdentifiers.SUPER_ATTACK_4_), new Item(ItemIdentifiers.ASTRAL_RUNE, 1000), new Item(ItemIdentifiers.EARTH_RUNE, 1000), new Item(ItemIdentifiers.DEATH_RUNE, 1000),

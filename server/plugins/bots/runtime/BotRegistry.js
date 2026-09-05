@@ -584,6 +584,7 @@ function createBotRegistry(options) {
     assignPvpMetadata(state, {
       metadata: pvpMetadata,
     });
+    state.pvp.presetPoolEnabled = true;
     syncBotProfileAttribute(bot, state);
     applyInitialPvpLoadout(bot, state);
     applyForcedModeForDiagnosis(bot, state);
