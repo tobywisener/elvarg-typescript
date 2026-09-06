@@ -478,11 +478,6 @@ export interface PluginRangedCombatModifier {
   modifyAttackRoll(attacker: any, target: any, attackRoll: number): number | null;
 }
 
-export type PluginExperienceRates = {
-  combat?: number;
-  regular?: number;
-};
-
 export interface PluginApi {
   onPlayerLogin(handler: (event: PluginPlayerLoginEvent) => void): void;
   onPlayerDisconnect(handler: (event: PluginPlayerDisconnectEvent) => void): void;
@@ -669,7 +664,7 @@ export interface PluginApi {
     handler: { amount(player: any): number; add(player: any, amount: number): void; remove(player: any, amount: number): void; name: string }
   ): void;
   setPlayerPersistence(persistence: PlayerPersistence): void;
-  setExperienceRates(rates: PluginExperienceRates): void;
+  setExperienceRate(rate: number): void;
   getActiveRegionSnapshot(): PluginActiveRegionsEvent;
   log(message: string, extra?: Record<string, unknown>): void;
   /**

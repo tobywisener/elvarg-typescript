@@ -1,8 +1,13 @@
-export interface DefinitionSource {
+import fs = require("fs");
+import path = require("path");
+
+export interface DefinitionSourceProvider {
     name?: string;
     priority?: number;
     load(): unknown;
 }
+
+export type DefinitionSource = DefinitionSourceProvider | string;
 
 export interface LoadedDefinitionSource<T> {
     name: string;
@@ -16,7 +21,7 @@ export interface DefinitionSourceLoadResult<T> {
     failures: number;
 }
 
-interface RegisteredDefinitionSource extends Required<DefinitionSource> {
+interface RegisteredDefinitionSource extends Required<DefinitionSourceProvider> {
     owner: string;
 }
 
@@ -33,15 +38,21 @@ export abstract class DefinitionLoader implements Runnable {
     ): void {
         const type = definitionType?.trim();
         const sourceOwner = owner?.trim();
-        const sourceName = source?.name?.trim() || sourceOwner;
-        const priority = source?.priority ?? 100;
+        if (typeof source === "string" && !source.trim()) {
+            throw new Error(`Definition source ${type || "unknown"} requires a JSON file path`);
+        }
+        const provider: DefinitionSourceProvider = typeof source === "string"
+            ? { load: () => JSON.parse(fs.readFileSync(path.resolve(process.cwd(), source), "utf8")) }
+            : source;
+        const sourceName = provider?.name?.trim() || sourceOwner;
+        const priority = provider?.priority ?? 100;
         if (!type) {
             throw new Error("Definition source requires a definition type");
         }
         if (!sourceOwner || !sourceName) {
             throw new Error(`Definition source ${type} requires an owner and name`);
         }
-        if (!source || typeof source.load !== "function") {
+        if (!provider || typeof provider.load !== "function") {
             throw new Error(`Definition source ${type}:${sourceName} requires load()`);
         }
         if (!Number.isFinite(priority)) {
@@ -57,7 +68,7 @@ export abstract class DefinitionLoader implements Runnable {
             owner: sourceOwner,
             name: sourceName,
             priority,
-            load: source.load,
+            load: provider.load,
         });
         this.sourcesByDefinition.set(type, sources);
     }

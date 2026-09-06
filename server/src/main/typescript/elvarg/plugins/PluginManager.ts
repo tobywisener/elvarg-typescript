@@ -2799,7 +2799,7 @@ export class PluginManager {
           `[plugins] player persistence set by ${pluginName}: ${previousName} -> ${nextName}`
         );
       },
-      setExperienceRates: (rates) => GameConstants.setExperienceRates(rates),
+      setExperienceRate: (rate) => GameConstants.setExperienceRate(rate),
       getActiveRegionSnapshot: () => {
         try {
           const worldModule = require("../game/World");

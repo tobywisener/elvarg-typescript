@@ -26,8 +26,10 @@ export class GameConstants {
     public static readonly DEFAULT_LOCATION = new Location(3089, 3524);
     public static readonly QUEUE_SWITCHING_REFRESH: boolean = true;
     public static readonly DROP_THRESHOLD: number = 2;
-    public static COMBAT_SKILLS_EXP_MULTIPLIER: number = 6;
-    public static REGULAR_SKILLS_EXP_MULTIPLIER: number = 18;
+    // OSRS applies no experience multiplier and uses one curve for every skill,
+    // so combat and skilling share a single rate here. Raise it for faster
+    // progression; it is the only experience knob.
+    public static EXPERIENCE_MULTIPLIER: number = 1;
     public static readonly DEBUG_ATTACK_DISTANCE: boolean = false;
     // Verbose NPC face-change debug is expensive in large fights; keep off unless diagnosing.
     public static readonly DEBUG_NPC_FACE_POSITION_CHANGES: boolean = false;
@@ -80,16 +82,11 @@ export class GameConstants {
     public static SERVER_LOG_ENABLED_TYPES: string[] = [];
     public static SERVER_LOG_DISABLED_TYPES: string[] = ["plugin", "npc.face", "Combat"];
 
-    public static setExperienceRates(rates: { combat?: number; regular?: number }): void {
-        if (
-            !rates ||
-            (rates.combat !== undefined && (!Number.isFinite(rates.combat) || rates.combat <= 0)) ||
-            (rates.regular !== undefined && (!Number.isFinite(rates.regular) || rates.regular <= 0))
-        ) {
+    public static setExperienceRate(rate: number): void {
+        if (!Number.isFinite(rate) || rate <= 0) {
             return;
         }
-        if (rates.combat !== undefined) this.COMBAT_SKILLS_EXP_MULTIPLIER = rates.combat;
-        if (rates.regular !== undefined) this.REGULAR_SKILLS_EXP_MULTIPLIER = rates.regular;
+        this.EXPERIENCE_MULTIPLIER = rate;
     }
 
     public static setPlayerPersistence(playerPersistence: PlayerPersistence): void {

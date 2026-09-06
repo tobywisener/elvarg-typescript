@@ -1,19 +1,26 @@
+// Combat and skilling share one experience rate; this checks the knob applies
+// uniformly and that bad values are rejected rather than silently stored.
 import { strict as assert } from "assert";
 import { GameConstants } from "../src/main/typescript/elvarg/game/GameConstants";
-const combat = GameConstants.COMBAT_SKILLS_EXP_MULTIPLIER;
-const regular = GameConstants.REGULAR_SKILLS_EXP_MULTIPLIER;
+
+const original = GameConstants.EXPERIENCE_MULTIPLIER;
 
 try {
-  GameConstants.setExperienceRates({ combat: 2.5, regular: 4 });
-  assert.equal(GameConstants.COMBAT_SKILLS_EXP_MULTIPLIER, 2.5);
-  assert.equal(GameConstants.REGULAR_SKILLS_EXP_MULTIPLIER, 4);
+  assert.equal(original, 1, "default experience rate should be 1x, matching OSRS");
 
-  GameConstants.setExperienceRates({ combat: Infinity, regular: 0 });
-  assert.equal(GameConstants.COMBAT_SKILLS_EXP_MULTIPLIER, 2.5);
-  assert.equal(GameConstants.REGULAR_SKILLS_EXP_MULTIPLIER, 4);
+  GameConstants.setExperienceRate(2.5);
+  assert.equal(GameConstants.EXPERIENCE_MULTIPLIER, 2.5);
+
+  for (const invalid of [0, -1, NaN, Infinity]) {
+    GameConstants.setExperienceRate(invalid);
+    assert.equal(
+      GameConstants.EXPERIENCE_MULTIPLIER,
+      2.5,
+      `setExperienceRate(${invalid}) should have been rejected`
+    );
+  }
 } finally {
-  GameConstants.COMBAT_SKILLS_EXP_MULTIPLIER = combat;
-  GameConstants.REGULAR_SKILLS_EXP_MULTIPLIER = regular;
+  GameConstants.EXPERIENCE_MULTIPLIER = original;
 }
 
 console.log("experience rates smoke test passed");
