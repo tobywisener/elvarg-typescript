@@ -75,7 +75,10 @@ class EatFoodActionNode {
     }
 
     if (!Number.isFinite(state.virtualFoodChargesRemaining)) {
-      state.virtualFoodChargesRemaining = this.maxCharges;
+      const profileCharges = Number(pvpProfile?.foodCharges);
+      state.virtualFoodChargesRemaining = Number.isFinite(profileCharges)
+        ? Math.max(1, Math.floor(profileCharges))
+        : this.maxCharges;
     }
     if (!Number.isFinite(state.nextNoFoodLogAt)) {
       state.nextNoFoodLogAt = 0;
