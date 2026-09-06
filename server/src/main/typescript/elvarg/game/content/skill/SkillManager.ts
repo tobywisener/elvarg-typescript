@@ -132,12 +132,7 @@ export class SkillManager {
 
         // Multipliers...
         if (multipliers) {
-            if (skill == Skill.ATTACK || skill == Skill.DEFENCE || skill == Skill.STRENGTH || skill == Skill.HITPOINTS
-                || skill == Skill.RANGED || skill == Skill.MAGIC) {
-                experience *= GameConstants.COMBAT_SKILLS_EXP_MULTIPLIER;
-            } else {
-                experience *= GameConstants.REGULAR_SKILLS_EXP_MULTIPLIER;
-            }
+            experience *= GameConstants.EXPERIENCE_MULTIPLIER;
         }
 
         // Send exp drop..
