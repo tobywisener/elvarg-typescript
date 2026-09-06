@@ -9,6 +9,8 @@ const { FOOD } = require("../plugins/items/Food.plugin.js");
 async function main(): Promise<void> {
     assert.equal(FOOD.get(ItemIdentifiers.BANANA)?.heal, 2);
     assert.equal(FOOD.get(ItemIdentifiers.PEACH)?.heal, 8);
+    assert.deepEqual(FOOD.get(ItemIdentifiers.HALIBUT), { heal: 20, karambwan: true });
+    assert.equal(FOOD.get(ItemIdentifiers.MARLIN)?.heal, 24);
 
     await CachePipeline.initialize();
     assert.equal(CacheDefinitions.getSpellName(0, 3280), "Bones to Bananas");
