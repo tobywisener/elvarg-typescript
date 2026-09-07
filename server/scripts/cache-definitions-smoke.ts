@@ -11,6 +11,7 @@ import { NpcDefinitionLoader } from "../src/main/typescript/elvarg/game/definiti
 import { NPC } from "../src/main/typescript/elvarg/game/entity/impl/npc/NPC";
 import { EquipmentType } from "../src/main/typescript/elvarg/game/model/EquipmentType";
 import { Location } from "../src/main/typescript/elvarg/game/model/Location";
+import { ItemIdentifiers } from "../src/main/typescript/elvarg/util/ItemIdentifiers";
 
 async function main() {
     await CachePipeline.initialize();
@@ -54,6 +55,13 @@ async function main() {
     require("../plugins/items/ItemDefinitionLoader.plugin.js").register({ log() {} });
     assert.equal(ItemDefinition.forId(4151).getEquipmentType(), EquipmentType.WEAPON);
     assert.equal(ItemDefinition.forId(4151).getName(), CacheDefinitions.getItem(4151).name);
+    assert.equal(CacheDefinitions.getItem(ItemIdentifiers.AVERNIC_TREADS).wearPos, 10);
+    assert.equal(ItemDefinition.forId(ItemIdentifiers.AVERNIC_TREADS).getEquipmentType().getSlot(), 10);
+    assert.deepEqual(ItemDefinition.forId(ItemIdentifiers.AVERNIC_TREADS).getBonuses(), [
+        5, 5, 5, 11, 15,
+        21, 25, 25, 10, 10,
+        4, 2, 1, 0,
+    ]);
     RegionManager.init();
     assert.equal(ObjectDefinition.forId(2213)?.getName(), CacheDefinitions.getObject(2213).name);
     RegionManager.loadMapFiles(3200, 3200);

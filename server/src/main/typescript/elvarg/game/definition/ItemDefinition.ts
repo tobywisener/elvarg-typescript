@@ -3,6 +3,8 @@ import { EquipmentType } from "../model/EquipmentType";
 import { CacheDefinitions } from "../cache/CacheDefinitions";
 import { ObjStackability } from "../cache/codec/rs/config/objtype/ObjStackability";
 
+const EQUIPMENT_SLOTS = new Set([0, 1, 2, 3, 4, 5, 7, 9, 10, 12, 13]);
+
 export class ItemDefinition {
     public static definitions: Map<number, ItemDefinition> = new Map<number, ItemDefinition>();
     public static DEFAULT = new ItemDefinition();
@@ -63,6 +65,9 @@ export class ItemDefinition {
         this.noteId = cached.note;
         this.value = cached.price;
         this.weight = cached.weight;
+        if (this.equipmentType.getSlot() === -1 && EQUIPMENT_SLOTS.has(cached.wearPos)) {
+            this.equipmentType = new EquipmentType(cached.wearPos);
+        }
         this.cacheHydrated = true;
     }
 

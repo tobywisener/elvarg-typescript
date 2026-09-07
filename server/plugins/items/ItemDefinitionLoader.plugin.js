@@ -30,6 +30,14 @@ const getEquipmentType = () =>
 const getWeaponInterfaces = () =>
   requireGameModule(path.join("game", "content", "combat", "WeaponInterfaces"))
     .WeaponInterfaces;
+const getItemIdentifiers = () =>
+  requireGameModule(path.join("util", "ItemIdentifiers")).ItemIdentifiers;
+
+const AVERNIC_TREADS_BONUSES = [
+  5, 5, 5, 11, 15,
+  21, 25, 25, 10, 10,
+  4, 2, 1, 0,
+];
 
 function hydrateEquipmentType(raw) {
   const EquipmentType = getEquipmentType();
@@ -107,6 +115,8 @@ function loadItemDefinitions() {
 
     loaded += 1;
   }
+
+  ItemDefinition.forId(getItemIdentifiers().AVERNIC_TREADS).bonuses = AVERNIC_TREADS_BONUSES;
 
   return {
     filePath,
