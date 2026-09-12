@@ -101,7 +101,7 @@ const runtime = new CustomInterfaceRuntime({
     widgetManager,
     getCacheSystem: () => undefined,
     runWidgetScopedClientScript: () => {},
-    getContentApiBase: () => "http://localhost:43594",
+    fetchContent: async (path) => (await fetch(`http://localhost:43594${path}`)).json(),
 });
 
 // A group with no declaration is not ours to drive.

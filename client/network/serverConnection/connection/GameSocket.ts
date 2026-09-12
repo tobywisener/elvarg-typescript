@@ -5,6 +5,7 @@ export interface GameSocket extends EventTarget {
     readonly url?: string;
     send(data: ArrayBuffer | ArrayBufferView<ArrayBuffer>): void;
     close(code?: number, reason?: string): void;
+    fetchContent?(path: string): Promise<unknown>;
 }
 
 export type WebRtcConnectionConfig = {

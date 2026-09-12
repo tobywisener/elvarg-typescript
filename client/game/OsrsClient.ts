@@ -321,7 +321,7 @@ import { PendingInterfaceUpdates } from "../widgets/custom/PendingInterfaceUpdat
 import { setCustomInterface } from "../common/gamemode/GamemodeContentStore";
 import {
     fetchInterfaceDefinition,
-    getContentApiBase,
+    fetchContent,
 } from "../network/serverConnection/contentApi";
 import { resolveWidgetIdentifiers } from "./widgets/widgetActionPayload";
 import { RenderDataWorkerPool } from "./worker/RenderDataWorkerPool";
@@ -1237,7 +1237,7 @@ export class OsrsClient {
             getCacheSystem: () => this.cacheSystem,
             runWidgetScopedClientScript: (widgetUid, scriptId, args, phase) =>
                 this.runWidgetScopedClientScript(widgetUid, scriptId, args, phase),
-            getContentApiBase: () => getContentApiBase(),
+            fetchContent,
         });
     }
 
