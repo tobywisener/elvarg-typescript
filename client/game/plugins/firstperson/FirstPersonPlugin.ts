@@ -33,7 +33,7 @@ export class FirstPersonPlugin implements ClientPlugin, InputKeyHandler, InputMo
     }
 
     onKeyDown(event: KeyboardEvent): boolean {
-        if (event.code === "F4" && !event.repeat) {
+        if (event.code === "Backquote" && !event.repeat) {
             this.setEnabled(!this.enabled);
             return true;
         }
@@ -178,11 +178,11 @@ export class FirstPersonPlugin implements ClientPlugin, InputKeyHandler, InputMo
 
     private setEnabled(enabled: boolean): void {
         this.enabled = enabled;
-        this.cursorMode = "none";
+        this.cursorMode = enabled ? "alt" : "none";
         this.awaitingMenuOpen = false;
         this.menuOpenChecked = false;
         const { inputManager: input, camera } = this.client;
-        input.enablePointerLock = enabled;
+        input.enablePointerLock = false;
         input.clearInteractionPointerOverride();
         input.clearContextMenuAnchorOverride();
         this.closeWorldMenu();
@@ -193,7 +193,6 @@ export class FirstPersonPlugin implements ClientPlugin, InputKeyHandler, InputMo
             this.client.renderSelf = false;
             this.client.followPlayerCamera = true;
             camera.setViewPitchOverride(0);
-            input.requestPointerLock();
             return;
         }
         camera.setViewPitchOverride(undefined);

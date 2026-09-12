@@ -63,32 +63,26 @@ try {
         },
     };
     const plugin = new FirstPersonPlugin(client);
-    plugin.onKeyDown({ code: "F4", repeat: false } as KeyboardEvent);
-    assert.equal(plugin.shouldKeepWorldMenuOpen(), false, "F4 should not keep a closed menu alive");
-    plugin.onKeyDown({ code: "F4", repeat: false } as KeyboardEvent);
-    plugin.onKeyDown({ code: "F4", repeat: false } as KeyboardEvent);
-    assert.equal(menuCloseCount, 3, "changing F4 mode should discard stale menus");
+    plugin.onKeyDown({ code: "Backquote", repeat: false } as KeyboardEvent);
+    assert.equal(plugin.shouldKeepWorldMenuOpen(), false, "Backquote should not keep a closed menu alive");
+    plugin.onKeyDown({ code: "Backquote", repeat: false } as KeyboardEvent);
+    plugin.onKeyDown({ code: "Backquote", repeat: false } as KeyboardEvent);
+    assert.equal(menuCloseCount, 3, "changing Backquote mode should discard stale menus");
     client.camera.update(640, 480);
     plugin.updateInteractionPointer(client.camera);
-    assert.equal(input.mouseX, 320, "mouse look should keep the logical cursor on the reticle");
-    assert.equal(input.mouseY, 240, "mouse look should keep the logical cursor on the reticle");
+    assert.equal(input.hasInteractionPointerOverride(), false, "arrow-key mode should keep the normal cursor");
     input.keys.set("ArrowUp", true);
     plugin.handleCameraKeys({ camera: client.camera, input, deltaTime: 100 });
-    assert.ok((client.camera.getViewPitchOverride() ?? 0) < 0, "F4 up must be inverted");
+    assert.ok((client.camera.getViewPitchOverride() ?? 0) < 0, "Backquote mode up must be inverted");
     plugin.onKeyDown({ code: "AltLeft", repeat: false } as KeyboardEvent);
     plugin.updateInteractionPointer(client.camera);
-    assert.equal(input.hasInteractionPointerOverride(), false, "Alt should release world targeting");
-    assert.equal(input.enablePointerLock, false, "Alt should keep double-clicks from hiding the cursor");
-    assert.equal(plugin.shouldKeepWorldMenuOpen(), false, "Alt should return menu control to normal input");
-    plugin.onKeyDown({ code: "AltLeft", repeat: false } as KeyboardEvent);
-    plugin.updateInteractionPointer(client.camera);
-    assert.equal(input.hasInteractionPointerOverride(), true, "Alt should restore world targeting");
-    assert.equal(input.enablePointerLock, true, "relocking should restore pointer lock support");
+    assert.equal(input.hasInteractionPointerOverride(), true, "Alt should enable mouse-look targeting");
+    assert.equal(input.enablePointerLock, true, "Alt should enable pointer lock for mouse look");
     input.wheelDeltaY = -120;
     assert.equal(
         plugin.handleCameraScroll({ camera: client.camera, input, deltaTime: 0 }),
         true,
-        "F4 should handle scroll in either cursor mode",
+        "Backquote mode should handle scroll in either cursor mode",
     );
     assert.ok(client.camera.getViewZoomScale() > 1, "scrolling up should zoom in");
 
@@ -97,7 +91,7 @@ try {
     assert.equal(input.hasInteractionPointerOverride(), true, "opening a menu should keep the reticle target");
     assert.deepEqual(input.getContextMenuAnchor(0, 0), { x: 320, y: 228 }, "the menu should open above the reticle");
     client.menuOpen = true;
-    assert.equal(plugin.shouldKeepWorldMenuOpen(), true, "an open F4 menu should remain available");
+    assert.equal(plugin.shouldKeepWorldMenuOpen(), true, "an open Backquote menu should remain available");
     assert.equal(input.isPointerLock(), true, "the virtual menu cursor should keep pointer lock active");
     plugin.onMouseMove({ movementX: 10, movementY: 5 } as MouseEvent);
     assert.equal(input.mouseX, 330, "the virtual cursor should move from the reticle");
@@ -126,6 +120,11 @@ try {
     assert.equal(client.menuOpen, false, "a second right click should close the menu");
     assert.equal(input.clickMode1, ClickMode.NONE, "closing a menu must not open another one");
     assert.equal(input.isPointerLock(), true, "a second right click should resume mouse look");
+
+    plugin.onKeyDown({ code: "AltLeft", repeat: false } as KeyboardEvent);
+    plugin.updateInteractionPointer(client.camera);
+    assert.equal(input.hasInteractionPointerOverride(), false, "Alt should return to arrow-key mode");
+    assert.equal(input.enablePointerLock, false, "arrow-key mode should release pointer lock");
 
     inGame = false;
     input.setInteractionPointerOverride(320, 240);
