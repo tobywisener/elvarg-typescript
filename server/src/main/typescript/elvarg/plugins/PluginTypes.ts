@@ -54,6 +54,8 @@ export interface PluginPlayerLevelUpEvent {
   newLevel: number;
 }
 
+export type PluginCustomEventName = `${string}:${string}`;
+
 export interface PluginRegionLoadedEvent {
   regionId: number;
   absX: number;
@@ -526,6 +528,11 @@ export interface PluginApi {
   onFriendRemove(handler: (event: PluginFriendEvent) => void): void;
   onPlayerProcess(handler: (event: PluginPlayerProcessEvent) => void): void;
   onPlayerLevelUp(handler: (event: PluginPlayerLevelUpEvent) => void): void;
+  /** Subscribes to an exact namespaced plugin event, such as `mining:success`. */
+  onCustomEvent(
+    eventName: PluginCustomEventName,
+    handler: (payload: any) => void
+  ): void;
   onRegionLoaded(handler: (event: PluginRegionLoadedEvent) => void): void;
   onActiveRegionsUpdated(handler: (event: PluginActiveRegionsEvent) => void): void;
   onPathBlocked(handler: (event: PluginPathBlockedEvent) => void): void;
@@ -760,6 +767,11 @@ export interface PluginApi {
   emitFiremakingBlocked(event: PluginFiremakingBlockedEvent): boolean;
   emitObjectInteraction(event: PluginObjectInteractionEvent): boolean;
   emitPlayerLogin(event: PluginPlayerLoginEvent): void;
+  /** Dispatches synchronously; payloads are not queued or retained by the manager. */
+  emitCustomEvent(
+    eventName: PluginCustomEventName,
+    payload: any
+  ): void;
   getPluginPerformanceSnapshot(limit?: number): any[];
   resetPluginPerformanceStats(): void;
   setPluginPerformanceProfilingEnabled(enabled: boolean): void;
