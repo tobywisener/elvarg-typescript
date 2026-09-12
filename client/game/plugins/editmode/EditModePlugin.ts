@@ -1,3 +1,4 @@
+import { waterArea, generateIslandEdits } from "./IslandGenerator";
 import { buildPathCorners, createPathTiles } from "./PathGenerator";
 import { generateBuildingEdits, type BuildingShape, type BuildingStyle } from "./BuildingGenerator";
 import {
@@ -16,6 +17,7 @@ import {
     type EditModeTile,
     type EditModeTool,
     type EditModeWorldDefinition,
+    type EditModeBoundedWorldZone,
 } from "./types";
 
 type EditModePluginListener = () => void;
@@ -35,6 +37,7 @@ const DEFAULT_CONFIG: EditModePluginConfig = Object.freeze({
     renderAllHeightLevels: true,
     showMapIcons: false,
     showPvpZones: false,
+    showSafeZones: false,
     showMultiCombatZones: false,
     edits: [] as EditModeEdit[],
 });
@@ -202,22 +205,24 @@ export class EditModePlugin {
         this.worldDefinitionDirty = false;
     }
 
-    resizeWorldZone(index: number, bounds: Pick<EditModeWorldDefinition["zones"][number], "minX" | "maxX" | "minY" | "maxY">): void {
+    resizeWorldZone(index: number, bounds: Pick<EditModeBoundedWorldZone, "minX" | "maxX" | "minY" | "maxY">): void {
         const definition = this.world.definition;
         if (!definition || index < 0 || index >= definition.zones.length) return;
         const zones = [...definition.zones];
-        zones[index] = { ...zones[index], ...bounds };
+        const zone = zones[index];
+        if (zone.minX === undefined) return;
+        zones[index] = { ...zone, ...bounds };
         this.world = { ...this.world, definition: { ...definition, zones } };
         this.worldDefinitionDirty = true;
         this.commit();
     }
 
-    addWorldZone(bounds: Pick<EditModeWorldDefinition["zones"][number], "minX" | "maxX" | "minY" | "maxY">): void {
+    addWorldZone(bounds: Pick<EditModeBoundedWorldZone, "minX" | "maxX" | "minY" | "maxY">, tag: EditModeWorldDefinition["zones"][number]["tags"][number] = "pvp"): void {
         const definition = this.world.definition;
         if (!definition) return;
-        this.world = { ...this.world, definition: { ...definition, zones: [...definition.zones, { ...bounds, z: this.config.heightLevel, tags: ["pvp"] }] } };
+        this.world = { ...this.world, definition: { ...definition, zones: [...definition.zones, { ...bounds, z: this.config.heightLevel, tags: [tag] }] } };
         this.worldDefinitionDirty = true;
-        this.commit();
+        this.setConfig({ [tag === "safe" ? "showSafeZones" : tag === "pvp" ? "showPvpZones" : "showMultiCombatZones"]: true });
     }
 
     setWorldZoneType(index: number, tag: EditModeWorldDefinition["zones"][number]["tags"][number]): void {
@@ -227,7 +232,7 @@ export class EditModePlugin {
         zones[index] = { ...zones[index], tags: [tag] };
         this.world = { ...this.world, definition: { ...definition, zones } };
         this.worldDefinitionDirty = true;
-        this.commit();
+        this.setConfig({ [tag === "safe" ? "showSafeZones" : tag === "pvp" ? "showPvpZones" : "showMultiCombatZones"]: true });
     }
 
     deleteWorldZone(index: number): void {
@@ -384,11 +389,11 @@ export class EditModePlugin {
     }
 
     loadShops() {
-        return this.host?.loadShops?.() ?? Promise.reject(new Error("Shop editing requires /host"));
+        return this.host?.loadShops?.() ?? Promise.reject(new Error("Shop data is unavailable"));
     }
 
     loadNpcInteractions() {
-        return this.host?.loadNpcInteractions?.() ?? Promise.reject(new Error("NPC interaction editing requires /host"));
+        return this.host?.loadNpcInteractions?.() ?? Promise.reject(new Error("NPC interaction data is unavailable"));
     }
 
     getNpcMenuOptions(npcTypeId: number) {
@@ -414,7 +419,7 @@ export class EditModePlugin {
         const host = this.host;
         if (!host) return;
         const spawn = this.world.definition?.spawn;
-        // A missing definition (no development API, e.g. browser-hosted worlds)
+        // A missing definition (world data has not loaded)
         // only costs the spawn framing, so it must not block the editor.
         if (enabled && host.loadWorldDefinition && this.world.loading) return;
         host.setScenePreview(
@@ -547,6 +552,44 @@ export class EditModePlugin {
             }
         }
         this.commitEdits(edits);
+    }
+
+    copyArea(): string {
+        const range = this.getSelectionRange();
+        if (!range) throw new Error("Select an area to copy");
+        if (!this.host?.copyArea) throw new Error("Map data is unavailable");
+        return this.host.copyArea(range, this.config.edits);
+    }
+
+    private islandArea() {
+        const range = this.getSelectionRange();
+        if (!range || range.plane !== 0 || range.maxX - range.minX < 2 || range.maxY - range.minY < 2 || !this.host?.isWaterOverlay || !this.host.getTerrainHeight) return;
+        try {
+            return waterArea(this.copyArea(), this.host.isWaterOverlay);
+        } catch {
+            return undefined;
+        }
+    }
+
+    canGenerateIsland(): boolean {
+        return this.islandArea() !== undefined;
+    }
+
+    generateIsland(): void {
+        const area = this.islandArea();
+        if (!area) return;
+        const sample = this.host?.getTerrainHeight;
+        if (!sample) return;
+        const heights = new Map<string, number>();
+        for (let x = 1; x < area.width; x++) {
+            for (let y = 1; y < area.height; y++) {
+                const tileX = area.origin.x + x, tileY = area.origin.y + y;
+                const height = sample({ tileX, tileY, plane: 0 });
+                if (height === undefined) return;
+                heights.set(`${tileX}:${tileY}`, height);
+            }
+        }
+        this.commitEdits(generateIslandEdits(area, Math.random, (x, y) => heights.get(`${x}:${y}`)!), false);
     }
 
     clearArea(): void {
@@ -947,7 +990,7 @@ export class EditModePlugin {
             return;
         }
 
-        if (edit.kind === "clear" || edit.kind === "height" || edit.kind === "flag") return;
+        if (edit.kind === "clear" || edit.kind === "height" || edit.kind === "flag" || edit.kind === "underlay") return;
 
         const tile = { x: edit.tileX, y: edit.tileY };
         if (edit.kind === "place") {
@@ -982,7 +1025,7 @@ export class EditModePlugin {
     ): void {
         const regions = new Set<number>();
         for (const edit of edits) {
-            if (edit.kind === "clear" || edit.kind === "height" || edit.kind === "flag") {
+            if (edit.kind === "clear" || edit.kind === "height" || edit.kind === "flag" || edit.kind === "underlay") {
                 regions.add(((edit.tileX >> 6) << 8) | (edit.tileY >> 6));
             }
         }
@@ -1276,6 +1319,7 @@ export class EditModePlugin {
                 input?.renderAllHeightLevels ?? DEFAULT_CONFIG.renderAllHeightLevels,
             showMapIcons: input?.showMapIcons ?? DEFAULT_CONFIG.showMapIcons,
             showPvpZones: input?.showPvpZones ?? DEFAULT_CONFIG.showPvpZones,
+            showSafeZones: input?.showSafeZones ?? DEFAULT_CONFIG.showSafeZones,
             showMultiCombatZones:
                 input?.showMultiCombatZones ?? DEFAULT_CONFIG.showMultiCombatZones,
             edits: edits
@@ -1288,7 +1332,8 @@ export class EditModePlugin {
                             edit.kind === "terrain" ||
                             edit.kind === "clear" ||
                             edit.kind === "height" ||
-                            edit.kind === "flag"),
+                            edit.kind === "flag" ||
+                            edit.kind === "underlay"),
                 )
                 .map((edit) => ({
                     kind: edit.kind,

@@ -1,3 +1,4 @@
+import { isMapProfileEnabled } from "../../render/render/mapLoadProfile";
 import {
     DrawCall,
     App as PicoApp,
@@ -14,6 +15,7 @@ import { withRenderTransform } from "../../game/login/renderer/layout/config";
 import { drawServerListOverlay } from "../../game/login/renderer/render/serverListOverlay";
 import { getCanvasCssSize } from "../../common/utils/DeviceUtil";
 import { Overlay, OverlayInitArgs, OverlayUpdateArgs, RenderPhase } from "./Overlay";
+import { drawEditModeLoadingScreen, getEditModeSceneLoadingStatus } from "../../game/plugins/editmode/editModeLoadingScreen";
 
 /**
  * Login screen overlay.
@@ -70,6 +72,9 @@ export class LoginOverlay implements Overlay {
     private lastHoveredWorldIndex: number = -1;
     private lastHoveredServerIndex: number = -1;
     private uiNeedsRedraw: boolean = true;
+    private editorLoadingStatus?: string;
+    private lastEditorLoadingLogAt = -Infinity;
+    private waitingForEditorLaunch = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("edit");
 
     constructor(osrsClient: OsrsClient) {
         this.osrsClient = osrsClient;
@@ -165,6 +170,17 @@ export class LoginOverlay implements Overlay {
     }
 
     update(args: OverlayUpdateArgs): void {
+        if (this.osrsClient.scenePreviewEnabled) this.waitingForEditorLaunch = false;
+        const editorLoadingStatus = getEditModeSceneLoadingStatus(this.osrsClient)
+            ?? (this.waitingForEditorLaunch && this.gameState === GameState.LOGIN_SCREEN
+                ? "Loading world settings"
+                : undefined);
+        if (editorLoadingStatus !== this.editorLoadingStatus) this.uiNeedsRedraw = true;
+        this.editorLoadingStatus = editorLoadingStatus;
+        if (isMapProfileEnabled() && editorLoadingStatus && performance.now() - this.lastEditorLoadingLogAt >= 1000) {
+            this.lastEditorLoadingLogAt = performance.now();
+            console.info(`[map-profile] editor ${editorLoadingStatus}`, this.osrsClient.js5?.getProgress());
+        }
         // Update dimensions from args
         const { width, height } = args.resolution;
         if (this.width !== width || this.height !== height) {
@@ -174,7 +190,7 @@ export class LoginOverlay implements Overlay {
         }
 
         // Only render if on login screen (not logged in / loading game)
-        if (this.osrsClient.scenePreviewEnabled) {
+        if (this.osrsClient.scenePreviewEnabled && !this.editorLoadingStatus) {
             this.hideInGameServerListCanvas();
             return;
         }
@@ -316,7 +332,7 @@ export class LoginOverlay implements Overlay {
 
         // Only redraw UI when needed (LOADING/DOWNLOADING screen or state changed)
         // OSRS only draws the title fire once the login title screen is active (gameState >= 10).
-        const isLoginScreenWithFire = this.gameState >= GameState.LOGIN_SCREEN;
+        const isLoginScreenWithFire = !this.editorLoadingStatus && this.gameState >= GameState.LOGIN_SCREEN;
 
         if (
             this.uiNeedsRedraw ||
@@ -324,7 +340,11 @@ export class LoginOverlay implements Overlay {
             this.gameState === GameState.DOWNLOADING
         ) {
             // Draw login screen WITHOUT fire (fire rendered separately)
-            if (this.gameState === GameState.DOWNLOADING) {
+            if (this.editorLoadingStatus) {
+                const canvas = loginRenderer.getCanvas(renderLayoutWidth, renderLayoutHeight);
+                const ctx = canvas.getContext("2d");
+                if (ctx) drawEditModeLoadingScreen(loginRenderer, ctx, this.editorLoadingStatus);
+            } else if (this.gameState === GameState.DOWNLOADING) {
                 loginRenderer.drawDownload(
                     loginState,
                     renderLayoutWidth,
@@ -509,7 +529,7 @@ export class LoginOverlay implements Overlay {
         }
 
         // Dev scene preview renders the world in place of the login screen.
-        if (this.osrsClient.scenePreviewEnabled) {
+        if (this.osrsClient.scenePreviewEnabled && !this.editorLoadingStatus) {
             return;
         }
 
@@ -530,6 +550,7 @@ export class LoginOverlay implements Overlay {
             this.app.disable(PicoGL.BLEND);
             this.uiDrawCall.draw();
         }
+        if (this.editorLoadingStatus) return;
 
         // Draw fire overlays (on login screen OR during loading once sprites are loaded)
         const { loginState, loginRenderer } = this.osrsClient;

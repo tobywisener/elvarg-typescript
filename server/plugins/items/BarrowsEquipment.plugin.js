@@ -1,3 +1,4 @@
+const { PrayerHandler } = require("../../src/main/typescript/elvarg/game/content/PrayerHandler");
 const { Barrows } = require("../../src/main/typescript/elvarg/game/content/combat/Barrows");
 const { Equipment } = require("../../src/main/typescript/elvarg/game/model/container/impl/Equipment");
 const { Flag } = require("../../src/main/typescript/elvarg/game/model/Flag");
@@ -14,7 +15,6 @@ const { WeaponInterfaceManager } = require("../../src/main/typescript/elvarg/gam
 const META_KEY = "barrows";
 const MAX_DURABILITY = 1000;
 const TICKS_PER_DEGRADE = 90;
-const REPAIR_NPCS = [1358, 2635, 4105, 9157, 1759, 1760, 1761, 1762, 1764, 1765, 1766, 1767, 1768, 1769, 1770, 1771, 1772, 1773];
 const REPAIR_COSTS = [60, 100, 90, 80]; // helm, weapon, body, legs
 const BARROWS_WEAPONS = new Set([4710, 4718, 4726, 4734, 4747, 4755]);
 
@@ -146,8 +146,8 @@ function toragDefence(entity, effectiveDefence) {
   return Math.floor(effectiveDefence * (100 + missingHitpoints) / 100);
 }
 
-function chance() {
-  return Math.floor(Math.random() * 4) === 0;
+function chance(probability = 0.25) {
+  return Math.random() < probability;
 }
 
 function applyAhrimDamage(hit, target) {
@@ -161,10 +161,25 @@ function applyAhrimDamage(hit, target) {
 
 let BonusManager;
 
+let pluginApi;
+
+function repairEquipment(event) {
+  const { player } = event;
+  const cost = barrowsItems(player).reduce((total, item) => total + repairCost(item), 0);
+  if (cost <= 0) {
+    player.getPacketSender().sendMessage("You have no damaged Barrows equipment to repair.");
+    event.handled = true;
+    return true;
+  }
+  pluginApi.sendMultiChatboxPrompt(player, `Repair all Barrows equipment for ${cost.toLocaleString("en-US")} coins?`, "Repair", () => repairAll(player), "Cancel", () => {});
+  event.handled = true;
+  return true;
+}
+
 module.exports = {
-  name: "Barrows",
-  _test: { durability, setDurability, repairCost },
+  name: "BarrowsEquipment",
   register(api) {
+    pluginApi = api;
     BonusManager = api.getBonusManager();
     const tasks = new WeakMap();
     const TaskManager = api.getTaskManager();
@@ -179,8 +194,14 @@ module.exports = {
     api.registerRangedDefenseModifier(toragDefence);
     api.registerMagicDefenseModifier(toragDefence);
 
+    api.registerMeleeHitModifier((attacker, maxHit) => {
+      if (!attacker.isNpc() || !CombatFactory.fullVeracs(attacker)) return maxHit;
+      const target = attacker.getCombat().getTarget();
+      return target && PrayerHandler.isActivated(target, PrayerHandler.PROTECT_FROM_MELEE)
+        ? Math.floor(maxHit * 2 / 3) : maxHit;
+    });
     api.onCombatHitRoll((event) => {
-      if (event.combatType === CombatType.MELEE && event.attacker.isPlayer?.() && Barrows.hasFullSet(event.attacker.getAsPlayer(), "veracs") && chance()) {
+      if (event.combatType === CombatType.MELEE && CombatFactory.fullVeracs(event.attacker) && chance()) {
         event.forceAccurate = true;
         event.bypassProtectionPrayer = true;
       }
@@ -206,19 +227,21 @@ module.exports = {
       if (target.isPlayer?.() && damage > 0 && Barrows.hasDamnedSet(target.getAsPlayer(), "dharoks") && chance()) {
         attacker.getCombat().getHitQueue().addPendingDamage([new HitDamage(Math.floor(damage * 0.15), HitMask.RED)]);
       }
-      if (!attacker.isPlayer?.() || !chance()) return;
-      const player = attacker.getAsPlayer();
-      if (Barrows.hasFullSet(player, "guthans") && damage > 0) {
+      if (!chance(attacker.isNpc() && CombatFactory.fullAhrims(attacker) ? 0.2 : 0.25)) return;
+      const player = attacker.isPlayer() ? attacker.getAsPlayer() : null;
+      if (CombatFactory.fullGuthans(attacker) && damage > 0) {
         target.performGraphic(new Graphic(398));
-        const maximum = player.getSkillManager().getMaxLevel(Skill.HITPOINTS) + (Barrows.hasDamnedSet(player, "guthans") ? 10 : 0);
-        player.setHitpoints(Math.min(maximum, player.getHitpoints() + damage));
-      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.MAGIC && Barrows.hasFullSet(player, "ahrims")) {
+        const maximum = player
+          ? player.getSkillManager().getMaxLevel(Skill.HITPOINTS) + (Barrows.hasDamnedSet(player, "guthans") ? 10 : 0)
+          : attacker.getAsNpc().getDefinition().getHitpoints();
+        attacker.setHitpoints(Math.min(maximum, attacker.getHitpoints() + damage));
+      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.MAGIC && CombatFactory.fullAhrims(attacker)) {
         const skills = target.getAsPlayer().getSkillManager();
         skills.setCurrentLevels(Skill.STRENGTH, Math.max(0, skills.getCurrentLevel(Skill.STRENGTH) - 5));
-      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.RANGED && Barrows.hasFullSet(player, "karils")) {
+      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.RANGED && CombatFactory.fullKarils(attacker)) {
         const skills = target.getAsPlayer().getSkillManager();
         skills.setCurrentLevels(Skill.AGILITY, Math.floor(skills.getCurrentLevel(Skill.AGILITY) * 0.8));
-      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.MELEE && Barrows.hasFullSet(player, "torags")) {
+      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.MELEE && CombatFactory.fullTorags(attacker)) {
         const playerTarget = target.getAsPlayer();
         playerTarget.setRunEnergy(Math.floor(playerTarget.getRunEnergy() * 0.8));
       }
@@ -246,17 +269,9 @@ module.exports = {
         event.handled = true;
       }
     });
-    api.onNpcFirstClick(REPAIR_NPCS, (event) => {
-      const { player } = event;
-      const cost = barrowsItems(player).reduce((total, item) => total + repairCost(item), 0);
-      if (cost <= 0) {
-        player.getPacketSender().sendMessage("You have no damaged Barrows equipment to repair.");
-        event.handled = true;
-        return true;
-      }
-      api.sendMultiChatboxPrompt(player, `Repair all Barrows equipment for ${cost.toLocaleString("en-US")} coins?`, "Repair", () => repairAll(player), "Cancel", () => {});
-      event.handled = true;
-      return true;
-    });
+    api.onNpcInteraction("Bob", { Repair: repairEquipment });
+    api.onNpcInteraction("Aneirin", { Repair: repairEquipment });
+    api.onNpcInteraction("Dunstan", { "Talk-to": repairEquipment });
+    api.onNpcInteraction("Tindel Marchant", { "Talk-to": repairEquipment });
   },
 };

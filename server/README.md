@@ -22,12 +22,16 @@ or `no`) to skip that import; restart the server after changing the setting.
 `PLAYER_SAVE_DATABASE_PATH` and `LEGACY_PLAYER_SAVE_DIRECTORY` optionally override
 the database and legacy-save locations.
 
-## Development data API
+## Edit mode API
 
-`yarn dev` starts a loopback-only REST API at
-`http://127.0.0.1:49600/dev-api`. The API is not loaded or started by the
-production server. It exposes canonical runtime data registered by core server
-systems and plugins; the HTTP layer does not read definition files directly.
+In development, `plugins/world/EditModeApi.plugin.js` serves read-only world data
+at `/api/world` on the game server's HTTP/WebSocket port. The local map editor
+uses its game connection address to fetch this data. Production does not register
+this endpoint. `/api/world/shops` and `/api/world/npc-interactions` provide the
+canonical documents for local editing; export downloads the edited JSON files.
+Browser-host editors continue using host messaging.
+
+## Definition plugins
 
 Plugins contribute definition records through
 `api.registerDefinitionSource(type, { name, priority, load })`. The matching
@@ -46,34 +50,6 @@ api.registerNpcInteraction([506, 512], {
 ```
 
 Use `onNpcInteraction` for stateful or otherwise scripted interactions.
-
-Available routes:
-
-1. `GET /npc_spawns` reads the minimal, merged canonical NPC spawn list.
-2. `GET /dev-api/data` lists the registered server data resources.
-3. `GET /dev-api/data/:resource` reads a complete canonical document.
-4. `GET /dev-api/data/:resource/:id` reads one addressable entry.
-5. `PUT /dev-api/data/:resource` replaces a complete writable document.
-6. `PUT /dev-api/data/:resource/:id` replaces or creates one writable entry.
-7. `POST /dev-api/data/:resource` appends or creates an entry.
-
-Generic data GET responses include an `ETag`. Send it back as `If-Match` when saving to
-avoid overwriting canonical state that changed after it was loaded. Writes are
-serialized per resource and delegated to the owning provider.
-
-Plugins publish data explicitly through `api.registerServerDataResource(name,
-provider)`. A provider supplies `documentKind`, `read`, and optional `replace`
-or `create` callbacks. `read` should return the plugin's canonical in-memory
-state; persistence and runtime reload behavior remain the provider's
-responsibility. No gameplay resource is exposed until its owning subsystem is
-ready to register one.
-
-Configuration:
-
-1. `DEVELOPMENT_API_PORT` changes the API port (default: game port + 2).
-2. `DEVELOPMENT_API_HOST` changes the bind address (default: `127.0.0.1`).
-3. `DEVELOPMENT_API_ALLOWED_ORIGINS` adds comma-separated browser origins.
-4. `DEVELOPMENT_API_MAX_BODY_BYTES` changes the JSON request limit (default: 20 MiB).
 
 ## Logging
 

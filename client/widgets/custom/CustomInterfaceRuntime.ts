@@ -101,8 +101,7 @@ export type CustomInterfaceRuntimeDeps = {
         args: (number | string)[],
         phase: "pre" | "post" | "run_script",
     ) => void;
-    /** Base URL of the game server's HTTP side, e.g. "http://localhost:43594". */
-    getContentApiBase: () => string | undefined;
+    fetchContent: (path: string) => Promise<unknown>;
 };
 
 function sanitize(value: string | undefined): string {
@@ -355,20 +354,15 @@ export class CustomInterfaceRuntime {
 
     private async fetchRows(query: string): Promise<void> {
         const search = this.declaration?.search;
-        const base = this.deps.getContentApiBase();
-        if (!search || !base) {
+        if (!search) {
             return;
         }
         const sequence = ++this.fetchSequence;
-        const url = `${base}${search.endpoint}?${search.queryParam ?? "q"}=${encodeURIComponent(
+        const url = `${search.endpoint}?${search.queryParam ?? "q"}=${encodeURIComponent(
             query,
         )}&limit=${search.limit ?? DEFAULT_LIMIT}`;
         try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                return;
-            }
-            const payload = (await response.json()) as { total?: number; rows?: unknown[] };
+            const payload = (await this.deps.fetchContent(url)) as { total?: number; rows?: unknown[] };
             // A slower earlier request must not overwrite a newer one's results.
             if (sequence !== this.fetchSequence || query !== this.query) {
                 return;

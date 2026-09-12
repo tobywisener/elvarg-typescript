@@ -25,6 +25,7 @@ import {
 import { MapRegionReplacementManager } from "../game/collision/MapRegionReplacementManager";
 import {
   decodeClientPackets,
+  MAIN_INVENTORY_GROUP_ID,
   encodeDefaultAnimations,
   encodeGameframeBootstrap,
   encodeHandshake,
@@ -490,13 +491,18 @@ class ClientConnection {
               // Arceuus self-cast spells are identified by their cache spell name.
             } else if (actionPacket.groupId === MAIN_INVENTORY_GROUP_ID && actionPacket.itemId != null && actionPacket.slot != null &&
                 this.player.getInventory().getItems()[actionPacket.slot]?.getId() === actionPacket.itemId) {
+              const inventoryAction = actionPacket.groupId === MAIN_INVENTORY_GROUP_ID
+                ? ItemActionPacketListener.resolveInventoryWidgetAction(actionPacket.itemId, actionPacket.buttonNum)
+                : { optionIndex: actionPacket.buttonNum, option: actionPacket.option };
+              if (!inventoryAction) continue;
               if (actionPacket.subOpId && PluginManager.emitItemAction({
                 player: this.player,
                 interfaceId: actionPacket.widgetId,
                 item: this.player.getInventory().getItems()[actionPacket.slot],
                 itemId: actionPacket.itemId,
                 slot: actionPacket.slot,
-                clickType: actionPacket.buttonNum ?? 1,
+                clickType: inventoryAction.optionIndex,
+                option: inventoryAction.option,
                 subOpId: actionPacket.subOpId,
                 handled: false,
               })) {
@@ -504,7 +510,7 @@ class ClientConnection {
               }
               this.inventoryAction({
                 type: "inventory_action", widgetId: actionPacket.widgetId, slot: actionPacket.slot,
-                itemId: actionPacket.itemId, option: actionPacket.option, optionIndex: actionPacket.buttonNum,
+                itemId: actionPacket.itemId, ...inventoryAction,
               });
             } else {
               const handled = InterfaceActionClickOpcode.handle(this.player, actionPacket.widgetId, actionPacket.buttonNum, {

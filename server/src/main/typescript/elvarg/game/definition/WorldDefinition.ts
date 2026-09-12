@@ -3,7 +3,7 @@ import * as path from "path";
 import { Boundary } from "../model/Boundary";
 import { Location } from "../model/Location";
 
-export type WorldZoneTag = "pvp" | "multi-combat";
+export type WorldZoneTag = "pvp" | "multi-combat" | "safe";
 
 export interface WorldPosition {
     x: number;
@@ -106,7 +106,7 @@ export function parseWorldZone(value: unknown, label = "world zone"): WorldZone 
         throw new WorldDefinitionValidationError(`${label}.tags must be a non-empty array`);
     }
     for (const tag of new Set(zone.tags)) {
-        if (tag !== "pvp" && tag !== "multi-combat") {
+        if (tag !== "pvp" && tag !== "multi-combat" && tag !== "safe") {
             throw new WorldDefinitionValidationError(
                 `${label} has unsupported tag: ${String(tag)}`
             );
@@ -139,7 +139,7 @@ export function parseWorldDefinition(value: unknown): WorldDefinitionData {
     };
 }
 
-let definition = parseWorldDefinition(
+const definition = parseWorldDefinition(
     JSON.parse(fs.readFileSync(WORLD_FILE, "utf8"))
 );
 
@@ -151,6 +151,7 @@ export const WORLD_SPAWN = new Location(
 
 export const WORLD_ZONE_BOUNDARIES: Record<WorldZoneTag, Boundary[]> = {
     pvp: [],
+    safe: [],
     "multi-combat": [],
 };
 
@@ -164,6 +165,7 @@ function zoneBoundaries(zone: WorldZone): Boundary[] {
 function syncRuntime(): void {
     WORLD_SPAWN.set(definition.spawn.x, definition.spawn.y, definition.spawn.z);
     WORLD_ZONE_BOUNDARIES.pvp.length = 0;
+    WORLD_ZONE_BOUNDARIES.safe.length = 0;
     WORLD_ZONE_BOUNDARIES["multi-combat"].length = 0;
     for (const zone of definition.zones) {
         const boundaries = zoneBoundaries(zone);
@@ -180,57 +182,8 @@ function copyWorldDefinition(): WorldDefinitionData {
     };
 }
 
-function saveWorldDefinition(value: unknown): WorldDefinitionData {
-    const next = parseWorldDefinition(value);
-    const temporary = `${WORLD_FILE}.tmp`;
-    try {
-        fs.writeFileSync(temporary, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-        fs.renameSync(temporary, WORLD_FILE);
-    } catch (error) {
-        fs.rmSync(temporary, { force: true });
-        throw error;
-    }
-    definition = next;
-    syncRuntime();
-    return copyWorldDefinition();
-}
-
 export function getWorldDefinition(): WorldDefinitionData {
     return copyWorldDefinition();
-}
-
-export function setWorldSpawn(value: unknown): WorldPosition {
-    const spawn = parseWorldPosition(value);
-    return saveWorldDefinition({ ...definition, spawn }).spawn;
-}
-
-export function addWorldZone(value: unknown): { index: number; zone: WorldZone } {
-    const zone = parseWorldZone(value);
-    const saved = saveWorldDefinition({
-        ...definition,
-        zones: [...definition.zones, zone],
-    });
-    const index = saved.zones.length - 1;
-    return { index, zone: saved.zones[index] };
-}
-
-export function setWorldZone(index: number, value: unknown): WorldZone {
-    if (!Number.isInteger(index) || index < 0 || index >= definition.zones.length) {
-        throw new RangeError(`World zone ${String(index)} was not found`);
-    }
-    const zones = [...definition.zones];
-    zones[index] = parseWorldZone(value);
-    return saveWorldDefinition({ ...definition, zones }).zones[index];
-}
-
-export function deleteWorldZone(index: number): WorldZone {
-    if (!Number.isInteger(index) || index < 0 || index >= definition.zones.length) {
-        throw new RangeError(`World zone ${String(index)} was not found`);
-    }
-    const zones = [...definition.zones];
-    const [removed] = zones.splice(index, 1);
-    saveWorldDefinition({ ...definition, zones });
-    return removed;
 }
 
 syncRuntime();

@@ -1292,6 +1292,14 @@ export function encodeWidgetSetHidden(uid: number, hidden: boolean): Buffer {
   return encodeServerPacket(ServerPacketId.WIDGET_SET_HIDDEN, payload);
 }
 
+/** Set a raw cache model, preserving the interface's camera and zoom. */
+export function encodeWidgetSetModel(uid: number, modelId: number): Buffer {
+  const payload = Buffer.alloc(8);
+  payload.writeInt32BE(uid | 0, 0);
+  payload.writeInt32BE(modelId | 0, 4);
+  return encodeServerPacket(ServerPacketId.WIDGET_SET_MODEL, payload);
+}
+
 export function encodeWidgetSetItem(uid: number, itemId: number, quantity = 1): Buffer {
   const payload = Buffer.alloc(10);
   payload.writeInt32BE(uid | 0);

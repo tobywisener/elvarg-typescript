@@ -240,6 +240,7 @@ export async function queueLoadMap(host: WebGLOsrsRendererHost,
 
         let mapData: SdMapData | undefined;
         try {
+            if (input.mapProfileEnabled) console.info(`[map-profile] ${mapX},${mapY} queued for region build`);
             mapData = await host.osrsClient.workerPool.queueLoad<
                 SdMapLoaderInput,
                 SdMapData | undefined,

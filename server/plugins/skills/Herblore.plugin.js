@@ -143,7 +143,7 @@ module.exports = {
       player.getInventory().addItem(new Item(finished.potion, 1));
       player.getSkillManager().addExperiences(Skill.HERBLORE, finished.xp);
       event.handled = true;
-    });
+    }, { noted: false });
 
     api.log("registered", {
       cleanables: CLEANABLE_HERBS.size,

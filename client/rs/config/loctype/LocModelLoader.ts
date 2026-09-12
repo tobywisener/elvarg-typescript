@@ -61,6 +61,7 @@ export class LocModelLoader {
 
     getLocModelData(locType: LocType, type: LocModelType, rotation: number): ModelData | undefined {
         let model: ModelData | undefined;
+        let missingModel = false;
         const isMirrored = locType.isRotated || (type === LocModelType.WALL_CORNER && rotation > 3);
         if (!locType.types) {
             if (type !== LocModelType.NORMAL) {
@@ -80,7 +81,9 @@ export class LocModelLoader {
 
                 model = this.getModelData(modelId, isMirrored);
                 if (!model) {
-                    return undefined;
+                    // Queue every part in this pass instead of one network round trip per part.
+                    missingModel = true;
+                    continue;
                 }
 
                 if (modelCount > 1) {
@@ -88,6 +91,7 @@ export class LocModelLoader {
                 }
             }
 
+            if (missingModel) return undefined;
             if (modelCount > 1) {
                 model = ModelData.merge(LocModelLoader.mergeLocModelsCache, modelCount);
             }
@@ -114,7 +118,9 @@ export class LocModelLoader {
 
                 model = this.getModelData(modelId, isMirrored);
                 if (!model) {
-                    return undefined;
+                    // Queue every part in this pass instead of one network round trip per part.
+                    missingModel = true;
+                    continue;
                 }
 
                 if (modelCount > 1) {
@@ -122,6 +128,7 @@ export class LocModelLoader {
                 }
             }
 
+            if (missingModel) return undefined;
             if (modelCount > 1) {
                 model = ModelData.merge(LocModelLoader.mergeLocModelsCache, modelCount);
             }

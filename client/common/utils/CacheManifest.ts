@@ -105,6 +105,10 @@ export async function isCacheManifestComplete(entry: CacheManifestEntry): Promis
         const existing = new Set<string>();
         for (const req of requests) {
             existing.add(extractCacheFileName(req.url));
+            // Streaming stores dat2 as ranges; its manifest replaces the full-file entry.
+            if (new URL(req.url).pathname.endsWith("/main_file_cache.dat2/range/manifest")) {
+                existing.add("main_file_cache.dat2");
+            }
         }
         for (const expected of entry.files) {
             if (!existing.has(expected)) {

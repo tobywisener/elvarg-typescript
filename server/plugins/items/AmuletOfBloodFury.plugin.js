@@ -200,37 +200,21 @@ function getWrappedMethod(baseMethod) {
 let BonusManager;
 let CombatFactory;
 
+function createFromShard({ player, usedItem, usedWithItem }) {
+  createBloodFury(player, usedItem.getId() === AMULET_OF_FURY_ID ? usedItem : usedWithItem);
+}
+
+function chargeFromShard({ player, usedItem, usedWithItem }) {
+  chargeBloodFury(player, usedItem.getId() === AMULET_OF_BLOOD_FURY_ID ? usedItem : usedWithItem);
+}
+
 module.exports = {
   name: "AmuletOfBloodFury",
   register(api) {
     BonusManager = api.getBonusManager();
     CombatFactory = api.getCombatFactory();
-    api.onItemOnItem((event) => {
-      const {
-        player,
-        usedItemId,
-        usedWithItemId,
-        usedItem,
-        usedWithItem,
-      } = event;
-
-      const leftId = Number(usedItemId);
-      const rightId = Number(usedWithItemId);
-      if (leftId !== BLOOD_SHARD_ID && rightId !== BLOOD_SHARD_ID) {
-        return;
-      }
-
-      if (leftId === AMULET_OF_FURY_ID || rightId === AMULET_OF_FURY_ID) {
-        event.handled = true;
-        createBloodFury(player, leftId === AMULET_OF_FURY_ID ? usedItem : usedWithItem);
-        return;
-      }
-
-      if (leftId === AMULET_OF_BLOOD_FURY_ID || rightId === AMULET_OF_BLOOD_FURY_ID) {
-        event.handled = true;
-        chargeBloodFury(player, leftId === AMULET_OF_BLOOD_FURY_ID ? usedItem : usedWithItem);
-      }
-    });
+    api.onItemOnItem("Blood shard", "Amulet of fury", createFromShard, { noted: false });
+    api.onItemOnItem("Blood shard", "Amulet of blood fury", chargeFromShard, { noted: false });
 
     api.onItemAction((event) => {
       if (event.itemId !== AMULET_OF_BLOOD_FURY_ID) {

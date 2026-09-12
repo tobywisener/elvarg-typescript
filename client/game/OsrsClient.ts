@@ -321,7 +321,7 @@ import { PendingInterfaceUpdates } from "../widgets/custom/PendingInterfaceUpdat
 import { setCustomInterface } from "../common/gamemode/GamemodeContentStore";
 import {
     fetchInterfaceDefinition,
-    getContentApiBase,
+    fetchContent,
 } from "../network/serverConnection/contentApi";
 import { resolveWidgetIdentifiers } from "./widgets/widgetActionPayload";
 import { RenderDataWorkerPool } from "./worker/RenderDataWorkerPool";
@@ -650,6 +650,7 @@ export class OsrsClient {
      * edit mode plugin; the render loop reads it every frame.
      */
     scenePreviewEnabled: boolean = false;
+    scenePreviewLoadingStartedAt?: number;
 
     // DevTools: show object id labels per tile
     showObjectTileIds: boolean = false;
@@ -1236,7 +1237,7 @@ export class OsrsClient {
             getCacheSystem: () => this.cacheSystem,
             runWidgetScopedClientScript: (widgetUid, scriptId, args, phase) =>
                 this.runWidgetScopedClientScript(widgetUid, scriptId, args, phase),
-            getContentApiBase: () => getContentApiBase(),
+            fetchContent,
         });
     }
 
@@ -2448,6 +2449,15 @@ export class OsrsClient {
                         // events occurred this tick.
                         markWidgetsLoaded();
                     }
+                }
+            } else if (payload?.action === "set_model") {
+                const w = this.widgetManager?.getWidgetByUid(Number(payload.uid) | 0);
+                if (w) {
+                    w.modelType = 1;
+                    w.modelId = Number(payload.modelId) | 0;
+                    w.itemId = -1;
+                    w.itemQuantity = 0;
+                    this.widgetManager.invalidateWidgetRender(w, "server-set-model");
                 }
             } else if (payload?.action === "set_item") {
                 const uid = Number(payload.uid) | 0;
@@ -5935,6 +5945,9 @@ export class OsrsClient {
             const store = this.cacheSystem.getStore();
             if (store instanceof SparseMemoryStore) {
                 const js5 = new Js5RangeClient(cache.sparse.dat2Url, store);
+                // Static widgets may have painted before their models/sprites arrived. Their
+                // offscreen layer otherwise stays cached with those assets missing.
+                js5.onFetched(() => this.widgetManager?.invalidateAll());
                 if (cache.sparse.fetchChannel && typeof BroadcastChannel !== "undefined") {
                     const coordinator = new BroadcastChannel(cache.sparse.fetchChannel);
                     coordinator.onmessage = ({ data }: MessageEvent<unknown>) => {

@@ -4076,6 +4076,7 @@ __metadata:
     "@types/react-modal": "npm:^3.16.3"
     "@types/webfontloader": "npm:^1.6.38"
     "@wasm-audio-decoders/ogg-vorbis": "npm:^0.1.20"
+    basic-ftp: "npm:^6.2.1"
     bzip2: "npm:^0.1.1"
     denque: "npm:^2.1.0"
     fast-memoize: "npm:^2.5.2"
@@ -4844,6 +4845,13 @@ __metadata:
   bin:
     baseline-browser-mapping: dist/cli.cjs
   checksum: 10c0/4fd0ba04e96d9139827eb0aed4b086c789ca9062877a17946b7b51a5be5959412c4919d6c017ad8d233445cbef48716e409e0256326b789a435c699e4c5c7a49
+  languageName: node
+  linkType: hard
+
+"basic-ftp@npm:^6.2.1":
+  version: 6.2.1
+  resolution: "basic-ftp@npm:6.2.1"
+  checksum: 10c0/7b6d8cdf8e9a7ba71697d55554e56a82c2329ffbdc5a8da8143d840105d7b48bc169c1b5d2f1cc340e453ba362b1c151eece811d6fe478f847ebfe57ffc677b2
   languageName: node
   linkType: hard
 

@@ -27,24 +27,20 @@ const PICKAXES = [
 const PICKAXES_DESC = [...PICKAXES].sort((a, b) => b.requiredLevel - a.requiredLevel);
 
 const ROCKS = [
-  { objectIds: [9711, 9712, 9713, 15503, 15504, 15505], level: 1, xp: 5, oreId: ItemIds.CLAY, cycles: 11, respawnTicks: 2 },
-  { objectIds: [7453,7484], level: 1, xp: 18, oreId: ItemIds.COPPER_ORE, cycles: 12, respawnTicks: 4 },
-  { objectIds: [7485, 7486], level: 1, xp: 8, oreId: ItemIds.TIN_ORE, cycles: 12, respawnTicks: 4 },
-  { objectIds: [7455, 7488], level: 15, xp: 35, oreId: ItemIds.IRON_ORE, cycles: 13, respawnTicks: 5 },
-  { objectIds: [7457], level: 20, xp: 40, oreId: ItemIds.SILVER_ORE, cycles: 14, respawnTicks: 7 },
-  { objectIds: [7456], level: 30, xp: 50, oreId: ItemIds.COAL, cycles: 15, respawnTicks: 7 },
-  { objectIds: [7491, 9720, 9721, 9722, 11951, 11183, 11184, 11185, 2099], level: 40, xp: 65, oreId: ItemIds.GOLD_ORE, cycles: 15, respawnTicks: 10 },
-  { objectIds: [7492, 7459], level: 50, xp: 80, oreId: ItemIds.MITHRIL_ORE, cycles: 17, respawnTicks: 11 },
-  { objectIds: [7460], level: 70, xp: 95, oreId: ItemIds.ADAMANTITE_ORE, cycles: 18, respawnTicks: 14 },
-  { objectIds: [14859, 4860, 2106, 2107, 7461], level: 85, xp: 125, oreId: ItemIds.RUNITE_ORE, cycles: 23, respawnTicks: 45 },
+  { objectName: "Clay rocks", objectIds: [9711, 9712, 9713, 15503, 15504, 15505], level: 1, xp: 5, oreId: ItemIds.CLAY, cycles: 11, respawnTicks: 2 },
+  { objectName: "Copper rocks", objectIds: [7453,7484], level: 1, xp: 18, oreId: ItemIds.COPPER_ORE, cycles: 12, respawnTicks: 4 },
+  { objectName: "Tin rocks", objectIds: [7485, 7486], level: 1, xp: 8, oreId: ItemIds.TIN_ORE, cycles: 12, respawnTicks: 4 },
+  { objectName: "Iron rocks", objectIds: [7455, 7488], level: 15, xp: 35, oreId: ItemIds.IRON_ORE, cycles: 13, respawnTicks: 5 },
+  { objectName: "Silver rocks", objectIds: [7457], level: 20, xp: 40, oreId: ItemIds.SILVER_ORE, cycles: 14, respawnTicks: 7 },
+  { objectName: "Coal rocks", objectIds: [7456], level: 30, xp: 50, oreId: ItemIds.COAL, cycles: 15, respawnTicks: 7 },
+  { objectName: "Gold rocks", objectIds: [7491, 9720, 9721, 9722, 11951, 11183, 11184, 11185, 2099], level: 40, xp: 65, oreId: ItemIds.GOLD_ORE, cycles: 15, respawnTicks: 10 },
+  { objectName: "Mithril rocks", objectIds: [7492, 7459], level: 50, xp: 80, oreId: ItemIds.MITHRIL_ORE, cycles: 17, respawnTicks: 11 },
+  { objectName: "Adamantite rocks", objectIds: [7460], level: 70, xp: 95, oreId: ItemIds.ADAMANTITE_ORE, cycles: 18, respawnTicks: 14 },
+  { objectName: "Runite rocks", objectIds: [14859, 4860, 2106, 2107, 7461], level: 85, xp: 125, oreId: ItemIds.RUNITE_ORE, cycles: 23, respawnTicks: 45 },
 ];
 
-const ROCK_BY_OBJECT_ID = new Map();
-for (const rock of ROCKS) {
-  for (const id of rock.objectIds) {
-    ROCK_BY_OBJECT_ID.set(id, rock);
-  }
-}
+const ROCK_BY_NAME = new Map(ROCKS.map((rock) => [rock.objectName, rock]));
+let activeSessions;
 const ACTIVE_MINERS = new Set();
 
 class RockRespawnTask extends Task {
@@ -245,6 +241,18 @@ class MiningTask extends Task {
 let TaskManager;
 let ObjectManager;
 
+function handleMine(event) {
+  const rock = ROCK_BY_NAME.get(event.definition.getName());
+  if (!rock) {
+    return;
+  }
+
+  const started = startMining(event.player, event.object, rock, activeSessions);
+  if (started) {
+    event.handled = true;
+  }
+}
+
 module.exports = {
   name: "Mining",
   PICKAXES,
@@ -257,7 +265,7 @@ module.exports = {
   register(api) {
     TaskManager = api.getTaskManager();
     ObjectManager = api.getObjectManager();
-    const activeSessions = new Map();
+    activeSessions = new Map();
     TaskManager.submit(new MiningTask(activeSessions));
 
     api.onPlayerDisconnect(({ player }) => {
@@ -267,20 +275,12 @@ module.exports = {
       stopMining(activeSessions, player, false);
     });
 
-    api.onObjectFirstClick([...ROCK_BY_OBJECT_ID.keys()], (event) => {
-      const rock = ROCK_BY_OBJECT_ID.get(event.objectId);
-      if (!rock) {
-        return;
-      }
-
-      const started = startMining(event.player, event.object, rock, activeSessions);
-      if (started) {
-        event.handled = true;
-      }
-    });
+    for (const rock of ROCKS) {
+      api.onObjectInteraction(rock.objectName, { Mine: handleMine });
+    }
 
     api.log("registered", {
-      rocks: ROCK_BY_OBJECT_ID.size,
+      rocks: ROCKS.length,
       pickaxes: PICKAXES.length,
     });
   },

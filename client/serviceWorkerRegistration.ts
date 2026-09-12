@@ -1,6 +1,7 @@
 const serviceWorkerBase =
     typeof process !== "undefined" && process.env ? process.env.PUBLIC_URL : "";
-const SERVICE_WORKER_URL = `${serviceWorkerBase ?? ""}/service-worker.js`;
+// The host caches JS for a year; change the URL when updating the shell worker.
+const SERVICE_WORKER_URL = `${serviceWorkerBase ?? ""}/service-worker.js?v=4`;
 
 export function registerServiceWorker(): void {
     const isProd = typeof process !== "undefined" && process.env?.NODE_ENV === "production";

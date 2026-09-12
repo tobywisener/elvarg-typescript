@@ -120,18 +120,6 @@ const FURNACE_OBJECT_IDS = new Set(
   ].filter(Number.isInteger)
 );
 
-const ANVIL_OBJECT_IDS = new Set(
-  [
-    ObjectIds.ANVIL,
-    ObjectIds.ANVIL_2,
-    ObjectIds.ANVIL_3,
-    ObjectIds.ANVIL_4,
-    ObjectIds.ANVIL_5,
-    ObjectIds.ANVIL_6,
-    ObjectIds.AN_EXPERIMENTAL_ANVIL,
-  ].filter(Number.isInteger)
-);
-
 const SMELTING_RECIPES = [
   {
     name: "Bronze bar",
@@ -853,6 +841,37 @@ function handleSmithingInterfaceAction(activeSessions, player, buttonId) {
 
 let TaskManager;
 
+function handleSmelt({ player }) {
+  openSmeltingInterface(player);
+}
+
+function handleSmith({ player }) {
+  openEquipmentCreationInterface(player);
+}
+
+function handleSmithingItemOnObject(event) {
+  const { player, object, itemId } = event;
+  const name = object.getDefinition().getName();
+
+  if (name === "Furnace" || name === "Small furnace") {
+    const recipe = SMELT_RECIPES_BY_INGREDIENT.get(itemId);
+    if (!recipe) {
+      return;
+    }
+    performSmeltAction(player, recipe);
+    event.handled = true;
+    return;
+  }
+
+  if (name === "Anvil" || name === "An experimental anvil") {
+    if (SMITHABLE_EQUIPMENT_BY_BAR.has(itemId)) {
+      openEquipmentCreationInterface(player, itemId);
+      event.handled = true;
+      return;
+    }
+  }
+}
+
 module.exports = {
   name: "Smithing",
   SMITHING_BAR_TYPE_BY_ITEM_ID,
@@ -876,20 +895,10 @@ module.exports = {
       stopSmithingSession(ACTIVE_SMITHING_SESSIONS, player, false);
     });
 
-    api.onObjectFirstClick([...FURNACE_OBJECT_IDS], ({ player }) => {
-      openSmeltingInterface(player);
-      return true;
-    });
-
-    api.onObjectSecondClick([...FURNACE_OBJECT_IDS], ({ player }) => {
-      openSmeltingInterface(player);
-      return true;
-    });
-
-    api.onObjectFirstClick([...ANVIL_OBJECT_IDS], ({ player }) => {
-      openEquipmentCreationInterface(player);
-      return true;
-    });
+    api.onObjectInteraction("Furnace", { Smelt: handleSmelt });
+    api.onObjectInteraction("Small furnace", { Smelt: handleSmelt });
+    api.onObjectInteraction("Anvil", { Smith: handleSmith });
+    api.onObjectInteraction("An experimental anvil", { Use: handleSmith });
 
     api.onInterfaceActionButton(
       SMELTING_SKILLMULTI_BUTTON_IDS,
@@ -922,27 +931,7 @@ module.exports = {
         handleSmithingInterfaceAction(ACTIVE_SMITHING_SESSIONS, player, buttonId)
     );
 
-    api.onItemOnObject((event) => {
-      const { player, objectId, itemId } = event;
-
-      if (FURNACE_OBJECT_IDS.has(objectId)) {
-        const recipe = SMELT_RECIPES_BY_INGREDIENT.get(itemId);
-        if (!recipe) {
-          return;
-        }
-        performSmeltAction(player, recipe);
-        event.handled = true;
-        return;
-      }
-
-      if (ANVIL_OBJECT_IDS.has(objectId)) {
-        if (SMITHABLE_EQUIPMENT_BY_BAR.has(itemId)) {
-          openEquipmentCreationInterface(player, itemId);
-          event.handled = true;
-          return;
-        }
-      }
-    });
+    api.onItemOnObject(handleSmithingItemOnObject, { noted: false });
 
     api.log("registered", {
       smeltRecipes: SMELTING_RECIPES.length,

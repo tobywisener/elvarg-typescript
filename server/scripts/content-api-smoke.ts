@@ -24,6 +24,35 @@ async function main() {
     );
     ItemSpawner.register(api);
 
+    // Exercise the editor endpoint through the real router without booting Server.ts.
+    const pluginPath = path.resolve(__dirname, "../plugins/world/EditModeApi.plugin.js");
+    const pluginModule = { exports: {} as any };
+    const pluginRequire = require("module").createRequire(pluginPath);
+    const server = { PRODUCTION: true };
+    require("vm").runInNewContext(require("fs").readFileSync(pluginPath, "utf8"), {
+        module: pluginModule,
+        process,
+        require: (id: string) => id.endsWith("/Server") ? { Server: server } : pluginRequire(id),
+    });
+    pluginModule.exports.register(api);
+    assert.equal(ContentApi.resolve("GET", "/api/world")?.status, 404);
+    server.PRODUCTION = false;
+    pluginModule.exports.register(api);
+    const world = ContentApi.resolve("GET", "/api/world")!;
+    assert.equal(world.status, 200);
+    assert.deepEqual(JSON.parse(world.body),
+        require("../src/main/typescript/elvarg/game/definition/WorldDefinition").getWorldDefinition());
+    assert.equal(ContentApi.resolve("GET", "/api/world", world.headers.ETag)?.status, 304);
+    assert.equal(ContentApi.resolve("PUT", "/api/world")?.status, 405);
+    assert.equal(ContentApi.resolve("GET", "/api/world/nope")?.status, 404);
+
+    for (const [resource, file] of [["shops", "shops.json"], ["npc-interactions", "npc_interactions.json"]]) {
+        const response = ContentApi.resolve("GET", `/api/world/${resource}`)!;
+        assert.equal(response.status, 200);
+        assert.deepEqual(JSON.parse(response.body), JSON.parse(require("fs").readFileSync(`data/definitions/${file}`, "utf8")));
+        assert.equal(ContentApi.resolve("PUT", `/api/world/${resource}`)?.status, 405);
+    }
+
     const notFound = ContentApi.resolve("GET", "/api/nope");
     assert.equal(notFound?.status, 404, "unknown resources must 404");
     assert.equal(ContentApi.resolve("GET", "/regions"), null, "non-api urls are not ours");

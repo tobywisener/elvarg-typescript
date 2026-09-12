@@ -55,6 +55,8 @@ const AXES_BY_REQUIREMENT_DESC = [...AXES].sort(
 const TREES = [
   {
     name: "normal tree",
+    objectNames: ["Tree", "Dead tree", "Evergreen tree", "Dying tree"],
+    action: "Chop down",
     requiredLevel: 1,
     xpReward: 25,
     logId: ItemIds.LOGS,
@@ -101,6 +103,8 @@ const TREES = [
   },
   {
     name: "achey tree",
+    objectNames: ["Achey Tree"],
+    action: "Chop",
     requiredLevel: 1,
     xpReward: 25,
     logId: ItemIds.ACHEY_TREE_LOGS,
@@ -111,6 +115,8 @@ const TREES = [
   },
   {
     name: "oak",
+    objectNames: ["Oak tree"],
+    action: "Chop down",
     requiredLevel: 15,
     xpReward: 38,
     logId: ItemIds.OAK_LOGS,
@@ -128,6 +134,8 @@ const TREES = [
   },
   {
     name: "willow",
+    objectNames: ["Willow tree"],
+    action: "Chop down",
     requiredLevel: 30,
     xpReward: 68,
     logId: ItemIds.WILLOW_LOGS,
@@ -143,6 +151,8 @@ const TREES = [
   },
   {
     name: "teak",
+    objectNames: ["Teak tree"],
+    action: "Chop down",
     requiredLevel: 35,
     xpReward: 85,
     logId: ItemIds.TEAK_LOGS,
@@ -158,6 +168,8 @@ const TREES = [
   },
   {
     name: "dramen",
+    objectNames: ["Dramen tree"],
+    action: "Chop down",
     requiredLevel: 36,
     xpReward: 88,
     logId: ItemIds.DRAMEN_BRANCH,
@@ -168,6 +180,8 @@ const TREES = [
   },
   {
     name: "maple",
+    objectNames: ["Maple tree"],
+    action: "Chop down",
     requiredLevel: 45,
     xpReward: 100,
     logId: ItemIds.MAPLE_LOGS,
@@ -184,6 +198,8 @@ const TREES = [
   },
   {
     name: "mahogany",
+    objectNames: ["Mahogany tree"],
+    action: "Chop down",
     requiredLevel: 50,
     xpReward: 125,
     logId: ItemIds.MAHOGANY_LOGS,
@@ -199,6 +215,8 @@ const TREES = [
   },
   {
     name: "yew",
+    objectNames: ["Yew tree"],
+    action: "Chop down",
     requiredLevel: 60,
     xpReward: 175,
     logId: ItemIds.YEW_LOGS,
@@ -215,6 +233,8 @@ const TREES = [
   },
   {
     name: "magic",
+    objectNames: ["Magic tree"],
+    action: "Chop down",
     requiredLevel: 75,
     xpReward: 250,
     logId: ItemIds.MAGIC_LOGS,
@@ -231,6 +251,8 @@ const TREES = [
   },
   {
     name: "redwood",
+    objectNames: ["Redwood tree"],
+    action: "Cut",
     requiredLevel: 90,
     xpReward: 380,
     logId: ItemIds.REDWOOD_LOGS,
@@ -273,12 +295,9 @@ const TREES = [
   },
 ];
 
-const TREES_BY_OBJECT_ID = new Map();
-for (const tree of TREES) {
-  for (const objectId of tree.objectIds) {
-    TREES_BY_OBJECT_ID.set(objectId, tree);
-  }
-}
+const TREES_BY_NAME = new Map(TREES.flatMap((tree) => tree.objectNames.map((name) => [name, tree])));
+
+
 
 const TREE_LOG_IDS = Object.freeze(
   Array.from(new Set(TREES.map((tree) => tree.logId)))
@@ -677,6 +696,18 @@ let TaskManager;
 let ObjectManager;
 let ItemOnGroundManager;
 
+function handleChop(event) {
+  const tree = TREES_BY_NAME.get(event.definition.getName());
+  if (!tree) {
+    return;
+  }
+
+  startWoodcutting(event.player, event.object, tree, activeSessionsRef);
+
+  // Tree clicks are fully handled by this plugin (including fail messages).
+  event.handled = true;
+}
+
 module.exports = {
   name: "Woodcutting",
   register(api) {
@@ -703,43 +734,21 @@ module.exports = {
       return false;
     });
 
-    api.onObjectFirstClick([...TREES_BY_OBJECT_ID.keys()], (event) => {
-      const tree = TREES_BY_OBJECT_ID.get(event.objectId);
-      if (!tree) {
-        return;
+    for (const tree of TREES) {
+      for (const name of tree.objectNames) {
+        api.onObjectInteraction(name, { [tree.action]: handleChop });
       }
-
-      const started = startWoodcutting(
-        event.player,
-        event.object,
-        tree,
-        activeSessions
-      );
-      if (started) {
-        api.log("start", {
-          username: event.player.getUsername(),
-          tree: tree.name,
-          objectId: event.objectId,
-          x: event.location?.x,
-          y: event.location?.y,
-          z: event.location?.z,
-        });
-      }
-
-      // Tree clicks are fully handled by this plugin (including fail messages).
-      event.handled = true;
-    });
+    }
 
     api.log("registered", {
-      treeObjectIds: TREES_BY_OBJECT_ID.size,
-      supportedTrees: TREES.filter((tree) => tree.objectIds.length > 0).length,
+      treeNames: TREES_BY_NAME.size,
+      supportedTrees: TREES.length,
       axes: AXES.length,
     });
   },
   AXES,
   AXES_BY_REQUIREMENT_DESC,
   TREES,
-  TREES_BY_OBJECT_ID,
   TREE_LOG_IDS,
   findBestUsableAxe,
   findBestUsableAxeByLevel,

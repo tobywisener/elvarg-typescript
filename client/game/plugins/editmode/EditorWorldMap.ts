@@ -1,4 +1,4 @@
-import type { EditModeTile, EditModeWorldZone } from "./types";
+import type { EditModeTile, EditModeWorldZone, EditModeBoundedWorldZone } from "./types";
 
 type WorldMapArea = {
     id: number;
@@ -48,19 +48,23 @@ export class EditorWorldMap {
     private plotStart?: { x: number; y: number };
     private plotEnd?: { x: number; y: number };
     private selectedZoneIndex?: number;
+    private newZoneButton?: HTMLButtonElement;
     private zoneTypeSelect?: HTMLSelectElement;
     private deleteZoneButton?: HTMLButtonElement;
 
     constructor(
         private readonly client: EditorWorldMapClient,
         private readonly onNavigate: (tile: EditModeTile) => void,
-        private readonly getZones: () => { zones: readonly EditModeWorldZone[]; showPvp: boolean; showMulti: boolean } | undefined,
-        private readonly onZoneResize: (index: number, bounds: Pick<EditModeWorldZone, "minX" | "maxX" | "minY" | "maxY">) => void,
-        private readonly onNewZone: (bounds: Pick<EditModeWorldZone, "minX" | "maxX" | "minY" | "maxY">) => void,
+        private readonly getZones: () => { zones: readonly EditModeWorldZone[]; showPvp: boolean; showMulti: boolean; showSafe: boolean } | undefined,
+        private readonly onZoneResize: (index: number, bounds: Pick<EditModeBoundedWorldZone, "minX" | "maxX" | "minY" | "maxY">) => void,
+        private readonly onNewZone: (bounds: Pick<EditModeBoundedWorldZone, "minX" | "maxX" | "minY" | "maxY">, tag: EditModeWorldZone["tags"][number]) => void,
         private readonly onZoneTypeChange: (index: number, tag: EditModeWorldZone["tags"][number]) => void,
         private readonly onZoneDelete: (index: number) => void,
-        private readonly canEditZones: boolean,
     ) {}
+
+    private get canEditZones(): boolean {
+        return this.getZones() !== undefined;
+    }
 
     isOpen(): boolean {
         return this.panel !== undefined;
@@ -162,27 +166,28 @@ export class EditorWorldMap {
             font: "22px/22px sans-serif",
         });
         close.addEventListener("click", () => this.close(), { signal });
-        const newZone = document.createElement("button");
+        const newZone = this.newZoneButton = document.createElement("button");
         newZone.type = "button";
         newZone.textContent = "⤢  New zone";
         newZone.style.display = this.canEditZones ? "inline-block" : "none";
         newZone.title = "Plot a new zone by dragging a rectangle on the map";
         Object.assign(newZone.style, {
             height: "25px", padding: "0 9px", border: "1px solid rgba(255,255,255,0.18)",
-            borderRadius: "4px", color: "#fcd34d", background: "rgba(252,211,77,0.10)", cursor: "pointer",
+            borderRadius: "4px", color: "#e5e7eb", background: "#1b1e25", cursor: "pointer",
         });
         newZone.addEventListener("click", () => {
+            this.setSelectedZone(undefined);
             this.plotting = !this.plotting;
-            newZone.style.background = this.plotting ? "rgba(252,211,77,0.28)" : "rgba(252,211,77,0.10)";
+            newZone.style.background = this.plotting ? "#374151" : "#1b1e25";
             canvas.style.cursor = this.plotting ? "crosshair" : "grab";
         }, { signal });
         const zoneType = document.createElement("select");
         zoneType.title = "Zone type";
         zoneType.setAttribute("aria-label", zoneType.title);
-        for (const tag of ["pvp", "multi-combat"] as const) zoneType.add(new Option(tag === "pvp" ? "PvP" : "Multi-combat", tag));
+        for (const tag of ["pvp", "multi-combat", "safe"] as const) zoneType.add(new Option(tag === "pvp" ? "PvP" : tag === "safe" ? "Safe" : "Multi-combat", tag));
         Object.assign(zoneType.style, {
             display: "none", height: "25px", padding: "0 5px", border: "1px solid rgba(255,255,255,0.18)",
-            borderRadius: "4px", color: "#e5e7eb", background: "#1b1e25", font: "inherit",
+            borderRadius: "4px", color: "#e5e7eb", background: "#303640", font: "inherit",
         });
         zoneType.addEventListener("change", () => {
             if (this.selectedZoneIndex !== undefined) this.onZoneTypeChange(this.selectedZoneIndex, zoneType.value as EditModeWorldZone["tags"][number]);
@@ -202,7 +207,12 @@ export class EditorWorldMap {
         }, { signal });
         this.zoneTypeSelect = zoneType;
         this.deleteZoneButton = deleteZone;
-        header.append(heading, newZone, zoneType, deleteZone, close);
+        const zoneControl = document.createElement("div");
+        Object.assign(zoneControl.style, { display: "inline-flex", gap: "0" });
+        Object.assign(zoneType.style, { borderRadius: "4px 0 0 4px", margin: "0", boxSizing: "border-box" });
+        Object.assign(newZone.style, { borderRadius: "0 4px 4px 0", borderLeft: "0", margin: "0", boxSizing: "border-box" });
+        zoneControl.append(zoneType, newZone);
+        header.append(heading, zoneControl, deleteZone, close);
         Object.assign(canvas.style, {
             flex: "1 1 auto",
             minHeight: "0",
@@ -262,7 +272,7 @@ export class EditorWorldMap {
             if (zoneDrag) {
                 const zone = this.getZones()?.zones[zoneDrag.index];
                 const next = this.worldTileAt(event.offsetX, event.offsetY);
-                if (zone && next) {
+                if (zone && zone.minX !== undefined && next) {
                     const bounds = {
                         minX: zoneDrag.corner.includes("w") ? Math.min(next.x, zone.maxX - 1) : zone.minX,
                         maxX: zoneDrag.corner.includes("e") ? Math.max(next.x, zone.minX + 1) : zone.maxX,
@@ -284,11 +294,11 @@ export class EditorWorldMap {
             if (!dragging) return;
             dragging = false;
             if (this.plotting && this.plotStart && this.plotEnd) {
-                this.onNewZone({ minX: Math.min(this.plotStart.x, this.plotEnd.x), maxX: Math.max(this.plotStart.x, this.plotEnd.x), minY: Math.min(this.plotStart.y, this.plotEnd.y), maxY: Math.max(this.plotStart.y, this.plotEnd.y) });
+                this.onNewZone({ minX: Math.min(this.plotStart.x, this.plotEnd.x), maxX: Math.max(this.plotStart.x, this.plotEnd.x), minY: Math.min(this.plotStart.y, this.plotEnd.y), maxY: Math.max(this.plotStart.y, this.plotEnd.y) }, zoneType.value as EditModeWorldZone["tags"][number]);
                 this.plotStart = undefined;
                 this.plotEnd = undefined;
                 this.plotting = false;
-                newZone.style.background = "rgba(252,211,77,0.10)";
+                newZone.style.background = "#1b1e25";
                 canvas.style.cursor = "grab";
             }
             const selected = zoneDrag?.index ?? this.zoneAt(event.offsetX, event.offsetY);
@@ -336,13 +346,14 @@ export class EditorWorldMap {
         const canvas = this.canvas;
         const visible = this.getZones();
         if (!canvas || !visible) return undefined;
-        const corners = (zone: EditModeWorldZone) => [
+        const corners = (zone: EditModeBoundedWorldZone) => [
             ["nw", zone.minX, zone.maxY + 1], ["ne", zone.maxX + 1, zone.maxY + 1],
             ["sw", zone.minX, zone.minY], ["se", zone.maxX + 1, zone.minY],
         ] as const;
         for (let index = 0; index < visible.zones.length; index++) {
             const zone = visible.zones[index];
-            if (!(visible.showPvp && zone.tags.includes("pvp")) && !(visible.showMulti && zone.tags.includes("multi-combat"))) continue;
+            if (zone.minX === undefined) continue;
+            if (!(visible.showPvp && zone.tags.includes("pvp")) && !(visible.showMulti && zone.tags.includes("multi-combat")) && !(visible.showSafe && zone.tags.includes("safe"))) continue;
             for (const [corner, x, y] of corners(zone)) {
                 const px = canvas.width / 2 + (x - this.centerX) * this.pixelsPerTile;
                 const py = canvas.height / 2 - (y - this.centerY) * this.pixelsPerTile;
@@ -359,7 +370,8 @@ export class EditorWorldMap {
         if (!tile || !visible) return undefined;
         for (let index = visible.zones.length - 1; index >= 0; index--) {
             const zone = visible.zones[index];
-            const shown = (visible.showPvp && zone.tags.includes("pvp")) || (visible.showMulti && zone.tags.includes("multi-combat"));
+            if (zone.minX === undefined) continue;
+            const shown = (visible.showPvp && zone.tags.includes("pvp")) || (visible.showMulti && zone.tags.includes("multi-combat")) || (visible.showSafe && zone.tags.includes("safe"));
             if (shown && tile.x >= zone.minX && tile.x <= zone.maxX && tile.y >= zone.minY && tile.y <= zone.maxY) return index;
         }
         return undefined;
@@ -369,8 +381,8 @@ export class EditorWorldMap {
         this.selectedZoneIndex = index;
         const zone = index === undefined ? undefined : this.getZones()?.zones[index];
         if (this.zoneTypeSelect) {
-            this.zoneTypeSelect.style.display = zone ? "inline-block" : "none";
-            if (zone) this.zoneTypeSelect.value = zone.tags.includes("multi-combat") ? "multi-combat" : "pvp";
+            this.zoneTypeSelect.style.display = this.canEditZones ? "inline-block" : "none";
+            if (zone) this.zoneTypeSelect.value = zone.tags.includes("safe") ? "safe" : zone.tags.includes("multi-combat") ? "multi-combat" : "pvp";
         }
         if (this.deleteZoneButton) this.deleteZoneButton.style.display = zone ? "inline-block" : "none";
     }
@@ -380,7 +392,8 @@ export class EditorWorldMap {
         const visible = this.getZones();
         if (!canvas || !visible) return "grab";
         for (const zone of visible.zones) {
-            const color = (visible.showPvp && zone.tags.includes("pvp")) || (visible.showMulti && zone.tags.includes("multi-combat"));
+            if (zone.minX === undefined) continue;
+            const color = (visible.showPvp && zone.tags.includes("pvp")) || (visible.showMulti && zone.tags.includes("multi-combat")) || (visible.showSafe && zone.tags.includes("safe"));
             if (!color) continue;
             const left = canvas.width / 2 + (zone.minX - this.centerX) * this.pixelsPerTile;
             const right = canvas.width / 2 + (zone.maxX + 1 - this.centerX) * this.pixelsPerTile;
@@ -403,6 +416,8 @@ export class EditorWorldMap {
     }
 
     private draw = (): void => {
+        if (this.newZoneButton) this.newZoneButton.style.display = this.canEditZones ? "inline-block" : "none";
+        if (this.zoneTypeSelect) this.zoneTypeSelect.style.display = this.canEditZones ? "inline-block" : "none";
         const canvas = this.canvas;
         const context = this.context;
         const area = this.client.worldMapState.currentArea;
@@ -446,7 +461,8 @@ export class EditorWorldMap {
         if (visible) {
             for (let index = 0; index < visible.zones.length; index++) {
                 const zone = visible.zones[index];
-                const color = visible.showPvp && zone.tags.includes("pvp") ? "#fca5a5" : visible.showMulti && zone.tags.includes("multi-combat") ? "#fcd34d" : undefined;
+                if (zone.minX === undefined) continue;
+                const color = visible.showSafe && zone.tags.includes("safe") ? "#86efac" : visible.showPvp && zone.tags.includes("pvp") ? "#fca5a5" : visible.showMulti && zone.tags.includes("multi-combat") ? "#fcd34d" : undefined;
                 if (!color) continue;
                 const x = width / 2 + (zone.minX - this.centerX) * this.pixelsPerTile;
                 const y = height / 2 - (zone.maxY + 1 - this.centerY) * this.pixelsPerTile;
@@ -471,7 +487,7 @@ export class EditorWorldMap {
         if (this.plotStart && this.plotEnd) {
             const x = width / 2 + (Math.min(this.plotStart.x, this.plotEnd.x) - this.centerX) * this.pixelsPerTile;
             const y = height / 2 - (Math.max(this.plotStart.y, this.plotEnd.y) + 1 - this.centerY) * this.pixelsPerTile;
-            context.strokeStyle = "#fcd34d";
+            context.strokeStyle = this.zoneTypeSelect?.value === "safe" ? "#86efac" : this.zoneTypeSelect?.value === "pvp" ? "#fca5a5" : "#fcd34d";
             context.setLineDash([5, 4]);
             context.strokeRect(x, y, (Math.abs(this.plotEnd.x - this.plotStart.x) + 1) * this.pixelsPerTile, (Math.abs(this.plotEnd.y - this.plotStart.y) + 1) * this.pixelsPerTile);
             context.setLineDash([]);

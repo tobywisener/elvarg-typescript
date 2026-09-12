@@ -1,3 +1,4 @@
+import { ObjectDefinition } from "../../../definition/ObjectDefinition";
 import { RegionManager } from "../../../collision/RegionManager";
 import { Player } from "../player/Player";
 import { Location } from "../../../model/Location";
@@ -12,6 +13,13 @@ export class MapObjects {
 
     public static getPrivateArea(player: Player, id: number, location: Location): GameObject {
         let object = this.get(id, location, player.getPrivateArea());
+        if (!object) {
+            const candidates = player.getPrivateArea()?.getObjects() ?? [];
+            const shared = this.mapObjects.get(this.getHash(location.getX(), location.getY(), location.getZ())) ?? [];
+            object = [...candidates, ...shared].find((entry) => entry.getLocation().equals(location)
+                && ObjectDefinition.forPlayer(entry.getId(), player)?.id === id) ?? null;
+        }
+        if (object && !ObjectDefinition.forPlayer(object.getId(), player)) return null;
 
         if (object == null && player.getRights() == PlayerRights.DEVELOPER) {
             player.getPacketSender().sendMessage("@red@Object with id " + id + " does not exist.");

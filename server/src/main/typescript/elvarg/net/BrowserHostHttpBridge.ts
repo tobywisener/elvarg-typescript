@@ -12,6 +12,28 @@ addEventListener("message", function connect(event) {
   let sessionId;
   let closed = false;
   let sendTail = Promise.resolve();
+  let contentRequests = 0;
+  const fetchContent = async (request) => {
+    const { id, path } = request;
+    if (!Number.isSafeInteger(id) || typeof path !== "string" || path.length > 2048 ||
+        !/^\\/api\\/[a-z0-9-]+(?:\\/[a-z0-9-]+)*(?:\\?[^#]*)?$/i.test(path)) return;
+    if (contentRequests >= 16) {
+      port.postMessage({ type: "content", id, error: "Too many content requests" });
+      return;
+    }
+    contentRequests++;
+    try {
+      const response = await fetch(path, { signal: AbortSignal.timeout(8000), redirect: "error" });
+      if (!response.ok) throw new Error("Content request failed: " + response.status);
+      const body = await response.text();
+      if (body.length > 2000000) throw new Error("Content response too large");
+      port.postMessage({ type: "content", id, body });
+    } catch (error) {
+      port.postMessage({ type: "content", id, error: error.message });
+    } finally {
+      contentRequests--;
+    }
+  };
   const fail = (error) => {
     if (closed) return;
     closed = true;
@@ -35,7 +57,9 @@ addEventListener("message", function connect(event) {
   };
   port.onmessage = (event) => {
     if (closed) return;
-    if (event.data?.type === "message" && event.data.data instanceof ArrayBuffer) {
+    if (event.data?.type === "content") {
+      void fetchContent(event.data);
+    } else if (event.data?.type === "message" && event.data.data instanceof ArrayBuffer) {
       const data = event.data.data;
       const bytes = data.byteLength;
       sendTail = sendTail.then(async () => {

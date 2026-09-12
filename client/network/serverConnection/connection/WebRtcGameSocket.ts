@@ -48,6 +48,14 @@ export class WebRtcGameSocket extends EventTarget implements GameSocket {
     private state = CONNECTING;
     private readonly peer: RTCPeerConnection;
     private readonly channel: RTCDataChannel;
+    private readonly contentChannel: RTCDataChannel;
+    private nextContentId = 0;
+    private readonly contentRequests = new Map<number, {
+        body: string;
+        resolve: (value: unknown) => void;
+        reject: (error: Error) => void;
+        timeout: ReturnType<typeof setTimeout>;
+    }>();
     private readonly signal: WebSocket;
     private readonly sessionId = typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
@@ -64,6 +72,9 @@ export class WebRtcGameSocket extends EventTarget implements GameSocket {
         this.peer = new RTCPeerConnection({ iceServers: config.iceServers });
         this.channel = this.peer.createDataChannel("game", { ordered: true });
         this.channel.binaryType = "arraybuffer";
+        // Content requests use their own channel, never the binary game protocol.
+        this.contentChannel = this.peer.createDataChannel("content", { ordered: true });
+        this.contentChannel.addEventListener("message", (event) => this.receiveContent(event.data));
         this.signal = new WebSocket(this.url);
         this.timeout = setTimeout(
             () => this.state === CONNECTING && this.fail(`WebRTC connection to world ${config.worldId} timed out`),
@@ -96,6 +107,61 @@ export class WebRtcGameSocket extends EventTarget implements GameSocket {
         try { this.signal.close(1000, "game channel closed"); } catch {}
         try { this.channel.close(); } catch {}
         try { this.peer.close(); } catch {}
+    }
+
+    public async fetchContent(path: string): Promise<unknown> {
+        if (path.length > 2048 || !/^\/api\/[a-z0-9-]+(?:\/[a-z0-9-]+)*(?:\?[^#]*)?$/i.test(path)) {
+            throw new Error("Invalid content path");
+        }
+        if (this.contentChannel.readyState === "connecting") {
+            await new Promise<void>((resolve, reject) => {
+                const done = () => {
+                    clearTimeout(timer);
+                    this.contentChannel.removeEventListener("open", done);
+                    this.contentChannel.removeEventListener("close", done);
+                    this.contentChannel.readyState === "open" ? resolve() : reject(new Error("Content channel unavailable"));
+                };
+                const timer = setTimeout(done, 10_000);
+                this.contentChannel.addEventListener("open", done);
+                this.contentChannel.addEventListener("close", done);
+            });
+        }
+        if (this.contentChannel.readyState !== "open") throw new Error("Content channel unavailable");
+        if (this.contentRequests.size >= 16) throw new Error("Too many content requests");
+        const id = ++this.nextContentId;
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                this.contentRequests.delete(id);
+                reject(new Error("Content request timed out"));
+            }, 10_000);
+            this.contentRequests.set(id, { body: "", resolve, reject, timeout });
+            try { this.contentChannel.send(JSON.stringify({ id, path })); }
+            catch (error) {
+                clearTimeout(timeout);
+                this.contentRequests.delete(id);
+                reject(error);
+            }
+        });
+    }
+
+    private receiveContent(raw: unknown): void {
+        if (typeof raw !== "string" || raw.length > 32_768) return;
+        let message;
+        try { message = JSON.parse(raw); } catch { return; }
+        const request = this.contentRequests.get(message?.id);
+        if (!request) return;
+        try {
+            if (message.error) throw new Error(String(message.error));
+            if (typeof message.chunk !== "string") throw new Error("Invalid content response");
+            request.body += message.chunk;
+            if (request.body.length > 2_000_000) throw new Error("Content response too large");
+            if (!message.done) return;
+            request.resolve(JSON.parse(request.body));
+        } catch (error) {
+            request.reject(error as Error);
+        }
+        clearTimeout(request.timeout);
+        this.contentRequests.delete(message.id);
     }
 
     private bindPeer(): void {
@@ -224,6 +290,11 @@ export class WebRtcGameSocket extends EventTarget implements GameSocket {
         if (this.state === CLOSED) return;
         this.state = CLOSED;
         clearTimeout(this.timeout);
+        for (const request of this.contentRequests.values()) {
+            clearTimeout(request.timeout);
+            request.reject(new Error("World disconnected"));
+        }
+        this.contentRequests.clear();
         this.dispatchEvent(new CloseEvent("close", { code, reason, wasClean }));
     }
 

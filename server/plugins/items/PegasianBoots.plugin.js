@@ -33,18 +33,14 @@ function combine(player) {
   return true;
 }
 
+function handleCombine({ player }) {
+  combine(player);
+}
+
 module.exports = {
   name: "PegasianBoots",
   register(api) {
-    api.onItemOnItem((event) => {
-      const ids = [event.usedItemId, event.usedWithItemId];
-      if (!ids.includes(ItemIdentifiers.PEGASIAN_CRYSTAL) || !ids.includes(ItemIdentifiers.RANGER_BOOTS)) {
-        return;
-      }
-
-      event.handled = true;
-      combine(event.player);
-    });
+    api.onItemOnItem("Pegasian crystal", "Ranger boots", handleCombine, { noted: false });
   },
   _test: { combine },
 };

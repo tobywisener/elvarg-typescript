@@ -163,6 +163,7 @@ class EditorChrome {
     private readonly renderAllInput: HTMLInputElement;
     private readonly mapIconsInput: HTMLInputElement;
     private readonly pvpZonesInput: HTMLInputElement;
+    private readonly safeZonesInput: HTMLInputElement;
     private readonly multiCombatZonesInput: HTMLInputElement;
     private readonly unsubscribe: () => void;
     private readonly canvasShell?: HTMLElement;
@@ -196,7 +197,6 @@ class EditorChrome {
     private lastVersion = -1;
 
     constructor(private readonly plugin: EditModePlugin) {
-        const hostConnected = browserHostWindow() !== null;
         this.overlaySwatches = plugin.getOverlaySwatches();
         this.palette = new EditorPalette({
             onModeChange: (mode) => this.search(mode),
@@ -221,12 +221,12 @@ class EditorChrome {
                     action: () => this.toggleOverlayPalette(),
                 },
                 { id: "path", label: "Draw path", icon: createPathIcon },
-                ...(hostConnected ? [{
+                {
                     id: "shops",
                     label: "Browse shops",
                     icon: createShopIcon,
                     action: () => this.toggleShopBrowser(),
-                }] : []),
+                },
                 {
                     id: "world-map",
                     label: "World map",
@@ -235,7 +235,7 @@ class EditorChrome {
                 },
                 {
                     id: "export-region",
-                    label: browserHostWindow() ? "Save changes to world" : "Download edited regions",
+                    label: browserHostWindow() ? "Save changes to world" : "Download world and map edits",
                     icon: () => browserHostWindow() ? createSaveIcon() : createDownloadIcon(),
                     dividerBefore: true,
                     action: () => this.exportRegions(),
@@ -364,6 +364,8 @@ class EditorChrome {
             this.plugin.setConfig({ showMultiCombatZones: checked }),
         );
         this.multiCombatZonesInput = multiCombatZones.input;
+        const safeZones = zoneToggle("Safe", "#86efac", (checked) => this.plugin.setConfig({ showSafeZones: checked }));
+        this.safeZonesInput = safeZones.input;
         this.bottomBar.append(
             heightLabel,
             decrement,
@@ -372,7 +374,7 @@ class EditorChrome {
             renderAllLabel,
             mapIconsLabel,
         );
-        if (hostConnected) this.bottomBar.append(pvpZones.label, multiCombatZones.label);
+        this.bottomBar.append(pvpZones.label, multiCombatZones.label, safeZones.label);
         const refreshMap = document.createElement("button");
         refreshMap.type = "button";
         refreshMap.replaceChildren(createRefreshIcon(), document.createTextNode("Refresh map"));
@@ -536,6 +538,11 @@ class EditorChrome {
 
     private sync(): void {
         const state = this.plugin.getState();
+        this.toolbar.setDisabled("shops", !state.world.definition);
+        this.pvpZonesInput.disabled = !state.world.definition;
+        this.safeZonesInput.disabled = !state.world.definition;
+        this.safeZonesInput.checked = state.config.showSafeZones;
+        this.multiCombatZonesInput.disabled = !state.world.definition;
         this.heightInput.value = String(state.config.heightLevel);
         this.renderAllInput.checked = state.config.renderAllHeightLevels;
         this.mapIconsInput.checked = state.config.showMapIcons;
@@ -691,16 +698,31 @@ class EditorChrome {
                 actions.appendChild(image);
             }
         }
-        if (isGroundSelection && !hasTileRange && browserHostWindow()) {
+        if (isGroundSelection && !hasTileRange && this.plugin.getState().world.definition) {
             actions.append(
                 createActionButton("Set spawn point", createSpawnIcon, () => this.plugin.setSpawnPoint()),
             );
         }
         if (hasTileRange) {
-            actions.append(
+            const copy = createActionButton("Copy", createDuplicateIcon, () => {
+                try {
+                    const contents = this.plugin.copyArea();
+                    void navigator.clipboard.writeText(contents).then(
+                        () => { copy.lastChild!.textContent = " Copied"; },
+                        (error) => this.toast(`Copy failed: ${error instanceof Error ? error.message : String(error)}`),
+                    );
+                } catch (error) {
+                    this.toast(`Copy failed: ${error instanceof Error ? error.message : String(error)}`);
+                }
+            });
+            actions.append(copy,
+
                 createActionButton("Clear area", createTrashIcon, () => this.plugin.clearArea()),
                 createActionButton("Flatten area", createLayersIcon, () => this.plugin.flattenArea()),
             );
+            if (this.plugin.canGenerateIsland()) {
+                actions.append(createActionButton("Generate island", createLayersIcon, () => this.plugin.generateIsland()));
+            }
             const width = Math.abs(selection.tileEndX! - selection.tileX) + 1;
             const depth = Math.abs(selection.tileEndY! - selection.tileY) + 1;
             if (width > 2 && depth > 2 && selection.plane === 0) {
@@ -747,14 +769,14 @@ class EditorChrome {
                 const button = document.createElement("button");
                 button.type = "button";
                 button.textContent = "Select shop";
-                button.disabled = !browserHostWindow();
-                button.title = browserHostWindow() ? `Assign a shop to ${option.option}` : "Shop actions require /host";
-                Object.assign(button.style, { padding: "2px 5px", border: "1px solid rgba(255,255,255,0.18)", borderRadius: "3px", color: "#fff", background: "rgba(0,0,0,0.22)", cursor: browserHostWindow() ? "pointer" : "not-allowed", font: "inherit" });
+                button.disabled = !this.plugin.getState().world.definition;
+                button.title = this.plugin.getState().world.definition ? `Assign a shop to ${option.option}` : "Load a world definition to edit shop actions";
+                Object.assign(button.style, { padding: "2px 5px", border: "1px solid rgba(255,255,255,0.18)", borderRadius: "3px", color: "#fff", background: "rgba(0,0,0,0.22)", cursor: button.disabled ? "not-allowed" : "pointer", font: "inherit" });
                 button.addEventListener("click", () => this.openNpcShopPicker(selection.locId, clickKey));
                 pick.appendChild(button);
             }
             if (menu.rows.length) this.selectionDetails.appendChild(menu);
-            if (browserHostWindow() && !this.npcInteractionsLoaded && !this.npcInteractionsLoading) {
+            if (this.plugin.getState().world.definition && !this.npcInteractionsLoaded && !this.npcInteractionsLoading) {
                 void this.loadNpcInteractions();
             }
         } else if (definition) {
@@ -1182,6 +1204,14 @@ class EditorChrome {
                 ].filter(Boolean).join(" and ");
                 this.toast(`Saved ${saved}`);
                 return;
+            }
+            if (shopsDirty) {
+                FileSaver.saveAs(new Blob([JSON.stringify(this.shops, null, 2) + "\n"], { type: "application/json" }), "shops.json");
+                this.shopsDirty = false;
+            }
+            if (npcInteractionsDirty) {
+                FileSaver.saveAs(new Blob([JSON.stringify(this.npcInteractions, null, 2) + "\n"], { type: "application/json" }), "npc_interactions.json");
+                this.npcInteractionsDirty = false;
             }
             for (const pack of exported) {
                 const blob = new Blob([pack.data.slice().buffer], {

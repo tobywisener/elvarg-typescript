@@ -400,8 +400,7 @@ Also confirmed **still live** (checked because they sit in the same directories 
 mistaken for legacy remnants): `net/packet/Packet.ts`, `PacketBuilder.ts`, `PacketType.ts`,
 `ValueType.ts`, `ByteOrder.ts` (used by the live outbound encoding layer);
 `net/InboundPacketProfile.ts`/`OutboundPacketProfile.ts` (used by the live
-`net/codec/PacketEncoder.ts`/`PacketDecoder.ts`); `net/development/DevelopmentApiServer.ts` (wired
-into `Server.ts`, unrelated admin-API tooling).
+`net/codec/PacketEncoder.ts`/`PacketDecoder.ts`).
 
 ### Still not safe to delete without porting first
 

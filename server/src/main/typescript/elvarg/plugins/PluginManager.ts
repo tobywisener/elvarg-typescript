@@ -1,3 +1,5 @@
+import { CacheDefinitions } from "../game/cache/CacheDefinitions";
+import { ItemDefinition } from "../game/definition/ItemDefinition";
 import { PlayerSave } from "../game/entity/impl/player/persistence/PlayerSave";
 import { ContentApi } from "../net/http/ContentApi";
 import { CustomInterfaceRegistry } from "../game/interfaces/CustomInterfaceRegistry";
@@ -5,7 +7,6 @@ import * as fs from "fs";
 import * as path from "path";
 import { GameConstants } from "../game/GameConstants";
 import { MapRegionReplacementManager } from "../game/collision/MapRegionReplacementManager";
-import { ServerDataRegistry } from "../game/data/ServerDataRegistry";
 import { DefinitionLoader } from "../game/definition/loader/DefinitionLoader";
 import { ShopManager } from "../game/model/container/shop/ShopManager";
 import { WeaponProfiles } from "../game/content/combat/WeaponProfile";
@@ -25,6 +26,7 @@ import {
   PluginModule,
   PluginItemOnGroundItemEvent,
   PluginItemOnItemEvent,
+  PluginItemUseFilter,
   PluginItemOnNpcEvent,
   PluginItemOnPlayerEvent,
   PluginItemOnObjectEvent,
@@ -2431,7 +2433,7 @@ export class PluginManager {
       onGroundItemSecondClick: (itemIds, handler) => {
         registerGroundItemClickHook(2, itemIds, handler, "ground-item-second");
       },
-      onItemOnObject: (handler) => {
+      onItemOnObject: (handler, filter) => {
         if (typeof handler !== "function") {
           return;
         }
@@ -2441,11 +2443,22 @@ export class PluginManager {
             if (!event || event.handled || !event.player || !event.object) {
               return;
             }
+            if (filter?.noted !== undefined && (ItemDefinition.forId(event.itemId).isNoted() !== filter.noted)) return;
             handler(event);
           },
         });
       },
-      onItemOnItem: (handler) => {
+      onItemOnItem: (
+        itemNameOrHandler: string | ((event: PluginItemOnItemEvent) => void),
+        otherItemNameOrFilter?: string | PluginItemUseFilter,
+        namedHandler?: (event: PluginItemOnItemEvent) => void | boolean,
+        namedFilter?: PluginItemUseFilter
+      ) => {
+        const named = typeof itemNameOrHandler === "string";
+        const handler: ((event: PluginItemOnItemEvent) => void | boolean) | undefined =
+          named ? namedHandler : itemNameOrHandler;
+        const filter = named ? namedFilter : otherItemNameOrFilter as PluginItemUseFilter | undefined;
+        if (named && typeof otherItemNameOrFilter !== "string") return;
         if (typeof handler !== "function") {
           return;
         }
@@ -2461,11 +2474,20 @@ export class PluginManager {
             ) {
               return;
             }
-            handler(event);
+            if (filter?.noted !== undefined && (ItemDefinition.forId(event.usedItemId).isNoted() !== filter.noted || ItemDefinition.forId(event.usedWithItemId).isNoted() !== filter.noted)) return;
+            if (named) {
+              const usedName = event.usedItem.getDefinition().getName();
+              const targetName = event.usedWithItem.getDefinition().getName();
+              if (!((usedName === itemNameOrHandler && targetName === otherItemNameOrFilter)
+                || (usedName === otherItemNameOrFilter && targetName === itemNameOrHandler))) return;
+              if (handler(event) !== false) event.handled = true;
+            } else {
+              handler(event);
+            }
           },
         });
       },
-      onItemOnNpc: (handler) => {
+      onItemOnNpc: (handler, filter) => {
         if (typeof handler !== "function") {
           return;
         }
@@ -2475,11 +2497,12 @@ export class PluginManager {
             if (!event || event.handled || !event.player || !event.target || !event.item) {
               return;
             }
+            if (filter?.noted !== undefined && (ItemDefinition.forId(event.itemId).isNoted() !== filter.noted)) return;
             handler(event);
           },
         });
       },
-      onItemOnPlayer: (handler) => {
+      onItemOnPlayer: (handler, filter) => {
         if (typeof handler !== "function") {
           return;
         }
@@ -2499,11 +2522,12 @@ export class PluginManager {
             ) {
               return;
             }
+            if (filter?.noted !== undefined && (ItemDefinition.forId(event.itemId).isNoted() !== filter.noted)) return;
             handler(event);
           },
         });
       },
-      onItemOnGroundItem: (handler) => {
+      onItemOnGroundItem: (handler, filter) => {
         if (typeof handler !== "function") {
           return;
         }
@@ -2513,6 +2537,7 @@ export class PluginManager {
             if (!event || event.handled || !event.player || !event.inventoryItem) {
               return;
             }
+            if (filter?.noted !== undefined && (ItemDefinition.forId(event.inventoryItemId).isNoted() !== filter.noted || ItemDefinition.forId(event.groundItemId).isNoted() !== filter.noted)) return;
             handler(event);
           },
         });
@@ -2531,10 +2556,14 @@ export class PluginManager {
           },
         });
       },
-      onItemAction: (handler) => {
-        if (typeof handler !== "function") {
+      onItemAction: (
+        handler: string | ((event: PluginItemActionEvent) => void),
+        actions?: Record<string, (event: PluginItemActionEvent) => void | boolean>
+      ) => {
+        if (typeof handler !== "function" && (typeof handler !== "string" || !actions)) {
           return;
         }
+        const namedActions = new Map(Object.entries(actions ?? {}).filter(([, action]) => typeof action === "function"));
         PluginManager.itemActionHooks.push({
           pluginName,
           handler: (event) => {
@@ -2549,7 +2578,15 @@ export class PluginManager {
             ) {
               return;
             }
-            handler(event);
+            if (typeof handler === "function") {
+              handler(event);
+              return;
+            }
+            const definition = CacheDefinitions.getItem(event.itemId);
+            if (definition?.name !== handler || event.clickType < 1 || event.clickType > 5) return;
+            const option = definition.inventoryActions[event.clickType - 1];
+            const action = namedActions.get(option);
+            if (action && action(event) !== false) event.handled = true;
           },
         });
       },
@@ -2825,19 +2862,6 @@ export class PluginManager {
             `[plugins] ${pluginName} failed to replace map region ${regionId}`,
             err
           );
-        }
-      },
-      registerServerDataResource: (name, provider) => {
-        try {
-          ServerDataRegistry.register(name, `plugin:${pluginName}`, provider);
-        } catch (error) {
-          console.warn(
-            `[plugins] ${pluginName} failed to register server data resource ${String(
-              name
-            )}`,
-            error
-          );
-          throw error;
         }
       },
       registerDefinitionSource: (definitionType, source) => {

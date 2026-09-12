@@ -59,7 +59,7 @@ module.exports = {
       player.getInventory().addItem(new Item(gem.cut, 1));
       player.getSkillManager().addExperiences(Skill.CRAFTING, gem.xp);
       event.handled = true;
-    });
+    }, { noted: false });
 
     api.log("registered", { gems: GEMS.size });
   },

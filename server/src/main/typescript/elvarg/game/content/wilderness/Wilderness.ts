@@ -7,7 +7,8 @@ export class Wilderness {
         if (!location) {
             return false;
         }
-        return WORLD_ZONE_BOUNDARIES.pvp.some((boundary) => boundary.inside(location));
+        return !WORLD_ZONE_BOUNDARIES.safe.some((boundary) => boundary.inside(location))
+            && WORLD_ZONE_BOUNDARIES.pvp.some((boundary) => boundary.inside(location));
     }
 
     public static isIn(character: Mobile | null | undefined): boolean {

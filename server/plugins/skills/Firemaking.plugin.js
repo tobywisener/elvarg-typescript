@@ -662,11 +662,11 @@ module.exports = {
 
     api.onItemOnItem((event) => {
       handleItemOnItem(event, activeSessions);
-    });
+    }, { noted: false });
 
     api.onItemOnGroundItem((event) => {
       handleItemOnGroundItem(event, activeSessions);
-    });
+    }, { noted: false });
 
     api.onGroundItemSecondClick(
       LIGHTABLE_LOGS.map((log) => log.itemId),
@@ -677,7 +677,7 @@ module.exports = {
 
     api.onItemOnObject((event) => {
       handleItemOnObject(event, activeSessions);
-    });
+    }, { noted: false });
 
     api.log("registered", {
       lightableLogs: LIGHTABLE_LOGS.length,

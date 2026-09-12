@@ -25,7 +25,10 @@ export function drawDownload(host: LoginRendererHost, state: LoginState, width: 
         updateLayout(host, layoutWidth, layoutHeight, width, height);
 
         if (isEditModeLaunch()) {
-            drawEditModeLoadingScreen(host, ctx);
+            const percent = state.downloadTotal > 0
+                ? ` - ${Math.min(100, Math.floor(100 * state.downloadCurrent / state.downloadTotal))}%`
+                : "";
+            drawEditModeLoadingScreen(host, ctx, `${state.downloadLabel || "Preparing game assets"}${percent}`);
             return;
         }
 
@@ -52,7 +55,7 @@ export function drawInitial(host: LoginRendererHost, state: LoginState, width: n
         updateLayout(host, layoutWidth, layoutHeight, width, height);
 
         if (isEditModeLaunch()) {
-            drawEditModeLoadingScreen(host, ctx);
+            drawEditModeLoadingScreen(host, ctx, state.loadingText || "Initializing the editor");
             return;
         }
 

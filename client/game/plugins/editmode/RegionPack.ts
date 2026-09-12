@@ -163,6 +163,7 @@ function patchTerrain(
     const overlays = new Map<string, EditModeEdit>();
     const heights = new Map<string, number>();
     const flags = new Map<string, number>();
+    const underlays = new Map<string, number>();
     for (const edit of edits) {
         if ((edit.tileX >> 6) !== mapX || (edit.tileY >> 6) !== mapY) continue;
         const x = edit.tileX & 0x3f;
@@ -175,11 +176,13 @@ function patchTerrain(
             overlays.set(`${edit.plane}:${x}:${y}`, edit);
         } else if (edit.kind === "height") {
             heights.set(`${edit.plane}:${x}:${y}`, edit.locId);
+        } else if (edit.kind === "underlay") {
+            underlays.set(`${edit.plane}:${x}:${y}`, edit.locId);
         } else if (edit.kind === "flag") {
             flags.set(`${edit.plane}:${x}:${y}`, edit.locId);
         }
     }
-    if (overlays.size === 0 && heights.size === 0 && flags.size === 0) return data.slice();
+    if (overlays.size === 0 && heights.size === 0 && flags.size === 0 && underlays.size === 0) return data.slice();
 
     const width = wide ? 2 : 1;
     const output: number[] = [];
@@ -196,6 +199,7 @@ function patchTerrain(
             for (let y = 0; y < MAP_SIZE; y++) {
                 const overlay = overlays.get(`${plane}:${x}:${y}`);
                 const height = heights.get(`${plane}:${x}:${y}`);
+                const underlay = underlays.get(`${plane}:${x}:${y}`);
                 const flag = flags.get(`${plane}:${x}:${y}`);
                 const tileParts: Uint8Array[] = [];
                 let terminator: Uint8Array;
@@ -214,11 +218,11 @@ function patchTerrain(
                         break;
                     }
                     if (opcode <= 49) readValue();
-                    if ((!overlay || opcode > 49) && (flag === undefined || opcode < 50 || opcode > 81)) {
+                    if ((!overlay || opcode > 49) && (flag === undefined || opcode < 50 || opcode > 81) && (underlay === undefined || opcode <= 81)) {
                         tileParts.push(data.subarray(partStart, offset));
                     }
                 }
-                if (!overlay && height === undefined && flag === undefined) {
+                if (!overlay && height === undefined && flag === undefined && underlay === undefined) {
                     output.push(...data.subarray(tileStart, offset));
                     continue;
                 }
@@ -227,6 +231,7 @@ function patchTerrain(
                     writeTerrainValue(output, 2 + overlay.shape * 4 + (overlay.rotation & 3), wide);
                     writeTerrainValue(output, overlay.locId, wide);
                 }
+                if (underlay !== undefined && underlay > 0) writeTerrainValue(output, 81 + underlay, wide);
                 if (flag !== undefined && flag > 0) writeTerrainValue(output, 49 + flag, wide);
                 if (height === undefined) {
                     output.push(...terminator);
@@ -299,4 +304,58 @@ export function parseRegionPack(pack: Uint8Array): ParsedRegionPack {
         objectData: pack.subarray(24, terrainLengthOffset),
         terrainData: pack.subarray(terrainStart),
     };
+}
+
+/** Copies selected tiles on every plane from the same edited packs used by Save. */
+export function buildAreaClipboard(
+    bounds: { minX: number; maxX: number; minY: number; maxY: number },
+    getPack: (tileX: number, tileY: number) => Uint8Array,
+    wideTerrain: boolean,
+): string {
+    const tiles: Array<{ x: number; y: number; plane: number; terrain: number[] }> = [];
+    const objects: Loc[] = [];
+    const contains = (x: number, y: number) => x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY;
+    for (let mapX = bounds.minX >> 6; mapX <= bounds.maxX >> 6; mapX++) {
+        for (let mapY = bounds.minY >> 6; mapY <= bounds.maxY >> 6; mapY++) {
+            const pack = parseRegionPack(getPack(mapX * MAP_SIZE, mapY * MAP_SIZE));
+            if (pack.regionId !== ((mapX << 8) | mapY)) throw new Error("Wrong region returned for selection");
+            for (const loc of decodeLocs(pack.objectData)) {
+                const x = mapX * MAP_SIZE + loc.x;
+                const y = mapY * MAP_SIZE + loc.y;
+                if (contains(x, y)) objects.push({ ...loc, x: x - bounds.minX, y: y - bounds.minY });
+            }
+            const data = pack.terrainData;
+            let offset = 0;
+            const read = (width: number): number => {
+                if (offset + width > data.length) throw new Error("Truncated region terrain data");
+                const value = width === 2 ? (data[offset] << 8) | data[offset + 1] : data[offset];
+                offset += width;
+                return value;
+            };
+            for (let plane = 0; plane < PLANE_COUNT; plane++) {
+                for (let x = 0; x < MAP_SIZE; x++) {
+                    for (let y = 0; y < MAP_SIZE; y++) {
+                        const start = offset;
+                        while (true) {
+                            const opcode = read(wideTerrain ? 2 : 1);
+                            if (opcode === 0) break;
+                            if (opcode === 1) { read(1); break; }
+                            if (opcode <= 49) read(wideTerrain ? 2 : 1);
+                        }
+                        const worldX = mapX * MAP_SIZE + x;
+                        const worldY = mapY * MAP_SIZE + y;
+                        if (contains(worldX, worldY)) tiles.push({
+                            x: worldX - bounds.minX, y: worldY - bounds.minY, plane,
+                            terrain: Array.from(data.subarray(start, offset)),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    // Raw terrain records preserve heights (including procedural height opcodes), flags,
+    // underlays, overlays, shapes and rotations exactly. The origin retains noise coordinates.
+    return JSON.stringify({ format: "elvarg-map-area", version: 1, origin: { x: bounds.minX, y: bounds.minY },
+        width: bounds.maxX - bounds.minX + 1, height: bounds.maxY - bounds.minY + 1,
+        planes: PLANE_COUNT, wideTerrain, tiles, objects });
 }

@@ -2,7 +2,8 @@ import type { SdMapData } from "../loader/SdMapData";
 
 export function isMapProfileEnabled(): boolean {
     try {
-        return new URLSearchParams(globalThis.location?.search).get("map-profile") === "1";
+        const params = new URLSearchParams(globalThis.location?.search);
+        return params.get("map-profile") === "1";
     } catch {
         return false;
     }

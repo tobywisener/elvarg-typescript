@@ -35,8 +35,6 @@ const ensureContainersLoaded = () => {
 // Lazy requires to dodge circular deps during bootstrap.
 const getItemDefinition = () => require("../../definition/ItemDefinition").ItemDefinition as typeof import("../../definition/ItemDefinition").ItemDefinition;
 const getItemOnGroundManager = () => require("../../entity/impl/grounditem/ItemOnGroundManager").ItemOnGroundManager as typeof import("../../entity/impl/grounditem/ItemOnGroundManager").ItemOnGroundManager;
-const getTaskManager = () => require("../../task/TaskManager").TaskManager as typeof import("../../task/TaskManager").TaskManager;
-const getItemContainerTask = () => require("../../task/impl/ItemContainerTask").ItemContainerTask as typeof import("../../task/impl/ItemContainerTask").ItemContainerTask;
 
 export abstract class ItemContainer {
   public player: Player;
@@ -780,11 +778,8 @@ export abstract class ItemContainer {
       this.getFreeSlots() <= 0 &&
       !(this.containsNumber(item.id) && item.getDefinition().isStackable())
     ) {
-      getTaskManager().submit(
-        new (getItemContainerTask())(() => {
-          getItemOnGroundManager().registers(player, item);
-        })
-      );
+      // Drop once at the reward location. Ground-stack merging must not mutate the reward item.
+      getItemOnGroundManager().registers(player, item.clone());
     } else {
       this.addItem(item);
     }

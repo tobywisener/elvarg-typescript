@@ -2,10 +2,6 @@ export class NetworkConstants {
     public static readonly TCP_PORT: number = parseInt(process.env.TCP_PORT || "43594", 10) || 0;
     public static readonly WEBSOCKET_PORT: number = parseInt(process.env.WEBSOCKET_PORT || "43594", 10) || 0;
     public static readonly VOICE_SIGNAL_PORT: number = parseInt(process.env.VOICE_SIGNAL_PORT || "49599", 10) || 0;
-    public static readonly DEVELOPMENT_API_PORT: number = parseInt(
-        process.env.DEVELOPMENT_API_PORT || "49600",
-        10
-    );
     public static readonly LOGIN_REQUEST_OPCODE: number = 14;
     public static readonly NEW_CONNECTION_OPCODE: number = 16;
     public static readonly RECONNECTION_OPCODE: number = 18;

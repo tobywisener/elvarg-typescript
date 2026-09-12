@@ -8,6 +8,18 @@ import { CachePipeline } from "../src/main/typescript/elvarg/game/cache/CachePip
 import { Location } from "../src/main/typescript/elvarg/game/model/Location";
 import { PacketSender } from "../src/main/typescript/elvarg/net/packet/PacketSender";
 
+const { WORLD_ZONE_BOUNDARIES, parseWorldZone } = require("../src/main/typescript/elvarg/game/definition/WorldDefinition");
+const { Boundary } = require("../src/main/typescript/elvarg/game/model/Boundary");
+const { Wilderness: WildernessRules } = require("../src/main/typescript/elvarg/game/content/wilderness/Wilderness");
+assert.deepEqual(parseWorldZone({ minX: 3100, maxX: 3101, minY: 3600, maxY: 3601, z: 0, tags: ["safe"] }).tags, ["safe"]);
+WORLD_ZONE_BOUNDARIES.safe.push(new Boundary(3100, 3101, 3600, 3601, 0));
+try {
+    assert.equal(WildernessRules.isInLocation(new Location(3100, 3600, 0)), false, "safe overrides overlapping PvP");
+    assert.equal(WildernessRules.isInLocation(new Location(3102, 3600, 0)), true, "outside the safe boundary stays PvP");
+} finally {
+    WORLD_ZONE_BOUNDARIES.safe.pop();
+}
+
 const Wilderness = require("../plugins/areas/Wilderness.plugin");
 const { isVisibleRealPlayer } = require("../plugins/bots/behaviours/pvp/PvpTargetFilters");
 

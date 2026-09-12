@@ -1,10 +1,6 @@
 import * as fs from "fs";
 import { GameConstants } from "../../../GameConstants";
 import {
-    ServerDataError,
-    ServerDataRegistry,
-} from "../../../data/ServerDataRegistry";
-import {
     NpcInteractionActionDefinition,
     NpcInteractionDefinition,
 } from "../../NpcInteractionDefinition";
@@ -32,10 +28,8 @@ interface MutableNpcInteractionDefinition {
 export class NpcInteractionDefinitionLoader extends DefinitionLoader {
     public static readonly DEFINITION_TYPE = "npc_interactions";
     public static readonly CORE_SOURCE = "core";
-    private static dataResourceRegistered = false;
 
     public load(): boolean {
-        this.ensureDataResource();
         const contributed = this.loadSources<RawNpcInteractionDefinition>(
             NpcInteractionDefinitionLoader.DEFINITION_TYPE
         );
@@ -238,61 +232,5 @@ export class NpcInteractionDefinitionLoader extends DefinitionLoader {
             );
         }
         return parsed as Record<string, unknown>;
-    }
-
-    private ensureDataResource(): void {
-        if (NpcInteractionDefinitionLoader.dataResourceRegistered) {
-            return;
-        }
-        NpcInteractionDefinitionLoader.dataResourceRegistered = true;
-        ServerDataRegistry.register(
-            NpcInteractionDefinitionLoader.DEFINITION_TYPE,
-            NpcInteractionDefinitionLoader.CORE_SOURCE,
-            {
-                documentKind: "object",
-                read: () => this.readCoreDocument(),
-                replace: async (document) => {
-                    this.validateWritableDocument(document);
-                    const file = this.file();
-                    const temporaryFile = `${file}.${process.pid}.tmp`;
-                    await fs.promises.writeFile(
-                        temporaryFile,
-                        `${JSON.stringify(document, null, 2)}\n`,
-                        "utf8"
-                    );
-                    await fs.promises.rename(temporaryFile, file);
-                    new NpcInteractionDefinitionLoader().load();
-                    return this.readCoreDocument();
-                },
-            }
-        );
-    }
-
-    private validateWritableDocument(document: unknown): void {
-        if (!document || Array.isArray(document) || typeof document !== "object") {
-            throw new ServerDataError(
-                400,
-                "npc_interactions must be an object keyed by NPC id"
-            );
-        }
-        for (const [npcId, rawDefinition] of Object.entries(document as Record<string, unknown>)) {
-            if (!/^\d+$/.test(npcId) || !rawDefinition || Array.isArray(rawDefinition) || typeof rawDefinition !== "object") {
-                throw new ServerDataError(400, `Invalid NPC interaction entry ${npcId}`);
-            }
-            const definition = rawDefinition as Record<string, unknown>;
-            let actions = 0;
-            for (const property of ["first_click", "second_click", "third_click", "fourth_click"] as const) {
-                if (!Object.prototype.hasOwnProperty.call(definition, property)) {
-                    continue;
-                }
-                actions++;
-                if (!this.normalizeAction(definition[property], NpcInteractionDefinitionLoader.CORE_SOURCE)) {
-                    throw new ServerDataError(400, `Invalid ${property} for NPC ${npcId}`);
-                }
-            }
-            if (actions === 0) {
-                throw new ServerDataError(400, `NPC ${npcId} has no interactions`);
-            }
-        }
     }
 }

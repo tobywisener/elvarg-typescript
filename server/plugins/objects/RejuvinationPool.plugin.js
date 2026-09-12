@@ -2,13 +2,7 @@ const { CombatSpecial } = require("../../src/main/typescript/elvarg/game/content
 const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
 const { Skill } = require("../../src/main/typescript/elvarg/game/model/Skill");
-const { ObjectIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
 
-const POOL_IDS = [
-  ObjectIds.FANCY_REJUVENATION_POOL,
-  ObjectIds.ORNATE_REJUVENATION_POOL,
-  ObjectIds.ORNATE_POOL_OF_REJUVENATION,
-];
 const ATTR_BLEED_TASK_KEY = "combat:bleed:taskKey";
 const POOL_USE_DELAY_MS = 1000;
 const nextPoolUseAt = new WeakMap();
@@ -103,31 +97,33 @@ function restoreFromPool(player) {
 
 let TaskManager;
 
+function drinkFromPool(event) {
+  const player = event.player;
+  if (isRecentPvpCombat(player)) {
+    player
+      .getPacketSender()
+      .sendMessage("You can't drink from the pool during combat.");
+    event.handled = true;
+    return;
+  }
+  const now = Date.now();
+  if (now < (nextPoolUseAt.get(player) ?? 0)) {
+    event.handled = true;
+    return;
+  }
+  nextPoolUseAt.set(player, now + POOL_USE_DELAY_MS);
+  restoreFromPool(player);
+  Sounds.sendSound(player, Sound.PRAYER_RECHARGE);
+  player
+    .getPacketSender()
+    .sendMessage("You feel fully rejuvenated.");
+  event.handled = true;
+}
+
 module.exports = {
   name: "RejuvinationPool",
   register(api) {
     TaskManager = api.getTaskManager();
-    api.onObjectFirstClick(POOL_IDS, (event) => {
-      const player = event.player;
-      if (isRecentPvpCombat(player)) {
-        player
-          .getPacketSender()
-          .sendMessage("You can't drink from the pool during combat.");
-        event.handled = true;
-        return;
-      }
-      const now = Date.now();
-      if (now < (nextPoolUseAt.get(player) ?? 0)) {
-        event.handled = true;
-        return;
-      }
-      nextPoolUseAt.set(player, now + POOL_USE_DELAY_MS);
-      restoreFromPool(player);
-      Sounds.sendSound(player, Sound.PRAYER_RECHARGE);
-      player
-        .getPacketSender()
-        .sendMessage("You feel fully rejuvenated.");
-      event.handled = true;
-    });
+    api.onObjectInteraction("Ornate pool of Rejuvenation", { Drink: drinkFromPool });
   },
 };

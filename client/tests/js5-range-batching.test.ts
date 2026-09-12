@@ -27,6 +27,7 @@ async function main() {
         const client = new Js5RangeClient("https://example.test/cache", store);
         await Promise.all([client.requestGroup(0, 0), client.requestGroup(0, 1)]);
         assert.equal(requests, 1, "groups in one fetch block share a single HTTP request");
+        assert.deepEqual(client.getProgress(), { pending: 0, active: 0, downloadedBytes: 512 * 520 });
         await client.requestGroup(0, 1);
         assert.equal(requests, 1, "the warmed block prevents a later request");
     } finally {

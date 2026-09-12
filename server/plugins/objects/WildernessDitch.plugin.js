@@ -3,9 +3,7 @@ const { ForceMovement } = require("../../src/main/typescript/elvarg/game/model/F
 const { Location } = require("../../src/main/typescript/elvarg/game/model/Location");
 const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
-const { ObjectIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
 
-const WILDERNESS_DITCH_OBJECT_ID = ObjectIds.WILDERNESS_DITCH;
 
 let TaskManager;
 
@@ -46,14 +44,14 @@ function tryCrossWildernessDitch(player, ditchY, sourceY, options = {}) {
   return { crossed: true, reason: "ok", elapsed };
 }
 
+function crossDitch({ player, location, sourceLocation }) {
+  tryCrossWildernessDitch(player, location?.y, sourceLocation?.y);
+}
+
 module.exports = {
   name: "WildernessDitch",
   register: (api) => {
     TaskManager = api.getTaskManager();
-    api.onObjectFirstClick(
-      WILDERNESS_DITCH_OBJECT_ID,
-      ({ player, location, sourceLocation }) =>
-        tryCrossWildernessDitch(player, location?.y, sourceLocation?.y)
-    );
+    api.onObjectInteraction("Wilderness Ditch", { Cross: crossDitch });
   },
 };

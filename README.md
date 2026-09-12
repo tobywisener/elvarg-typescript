@@ -97,6 +97,15 @@ yarn setup
 
 Game caches, configuration, and player saves are not removed by either command.
 
+## Deploying the client
+
+Run `yarn deploy` from `client/` to build and upload `client/build/` to
+`/public_html/play` over explicit FTPS, with an upload progress bar. FTP settings
+come from the git-ignored `client/.env`; see `client/.env.example` for the keys.
+Existing remote files are retained and `index.html` is published last.
+
+Use `yarn deploy --dry-run` to validate configuration and build without uploading.
+
 ## Maintaining this fork
 
 The server is imported from the `xrsps` branch of `elvarg-web-server` with its

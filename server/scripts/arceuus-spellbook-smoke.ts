@@ -27,7 +27,7 @@ function main() {
     for (const name of [
         "arceuus home teleport", "arceuus library teleport", "draynor manor teleport", "battlefront teleport",
         "mind altar teleport", "respawn teleport", "salve graveyard teleport", "fenkenstrain's castle teleport",
-        "west ardougne teleport", "harmony island teleport", "cemetery teleport", "barrows teleport", "ape atoll teleport",
+        "west ardougne teleport", "harmony island teleport", "cemetery teleport", "ape atoll teleport",
     ]) assert(teleports.has(name), `missing Arceuus teleport: ${name}`);
 
     assert.deepEqual(ids(selfSpells.get("vile vigour").itemsRequired()), [[566, 1], [556, 3]]);

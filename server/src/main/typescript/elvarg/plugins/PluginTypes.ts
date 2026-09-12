@@ -3,7 +3,6 @@ import type { ObjectDefinition } from "../game/definition/ObjectDefinition";
 import type { WeaponCombatProfile } from "../game/content/combat/WeaponProfile";
 import type { PlayerPersistence } from "../game/entity/impl/player/persistence/PlayerPersistence";
 import type { ActiveRegionSnapshot } from "../game/ActiveRegionIndex";
-import type { ServerDataProvider } from "../game/data/ServerDataRegistry";
 import type { DefinitionSource } from "../game/definition/loader/DefinitionLoader";
 import type { FriendsChatAction } from "../net/protocol/ClientProtocol";
 
@@ -315,6 +314,12 @@ export interface PluginPlayerDefeatedEvent {
   victim: any;
 }
 
+/** Applies to every item involved, including an item or ground-item target. */
+export interface PluginItemUseFilter {
+  /** Omit to accept both noted and unnoted items. */
+  noted?: boolean;
+}
+
 export interface PluginItemOnObjectEvent {
   player: any;
   object: any;
@@ -616,13 +621,22 @@ export interface PluginApi {
     itemIds: number | number[],
     handler: (event: PluginGroundItemInteractionEvent) => void | boolean
   ): void;
-  onItemOnObject(handler: (event: PluginItemOnObjectEvent) => void): void;
-  onItemOnItem(handler: (event: PluginItemOnItemEvent) => void): void;
-  onItemOnPlayer(handler: (event: PluginItemOnPlayerEvent) => void): void;
-  onItemOnNpc(handler: (event: PluginItemOnNpcEvent) => void): void;
-  onItemOnGroundItem(handler: (event: PluginItemOnGroundItemEvent) => void): void;
+  onItemOnObject(handler: (event: PluginItemOnObjectEvent) => void, filter?: PluginItemUseFilter): void;
+  onItemOnItem(handler: (event: PluginItemOnItemEvent) => void, filter?: PluginItemUseFilter): void;
+  /** Matches exact item names in either order; event items retain their original order. */
+  onItemOnItem(
+    itemName: string,
+    otherItemName: string,
+    handler: (event: PluginItemOnItemEvent) => void | boolean,
+    filter?: PluginItemUseFilter
+  ): void;
+  onItemOnPlayer(handler: (event: PluginItemOnPlayerEvent) => void, filter?: PluginItemUseFilter): void;
+  onItemOnNpc(handler: (event: PluginItemOnNpcEvent) => void, filter?: PluginItemUseFilter): void;
+  onItemOnGroundItem(handler: (event: PluginItemOnGroundItemEvent) => void, filter?: PluginItemUseFilter): void;
   onSpellOnObject(handler: (event: PluginSpellOnObjectEvent) => void): void;
   onItemAction(handler: (event: PluginItemActionEvent) => void): void;
+  /** Exact item name and inventory option matching. Return false to fall through. */
+  onItemAction(itemName: string, actions: Record<string, (event: PluginItemActionEvent) => void | boolean>): void;
   onItemDropPolicy(handler: (event: PluginItemDropEvent) => void): void;
   onItemFirstAction(
     handler: (event: PluginItemActionEvent) => void | boolean
@@ -699,10 +713,6 @@ export interface PluginApi {
   replaceMapRegion(
     regionId: number,
     source: string | [string, string]
-  ): void;
-  registerServerDataResource(
-    name: string,
-    provider: ServerDataProvider
   ): void;
   registerDefinitionSource(
     definitionType: string,

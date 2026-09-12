@@ -1220,6 +1220,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
     async load(
         state: WorkerState,
         {
+            mapProfileEnabled = false,
             mapX,
             mapY,
             maxLevel,
@@ -1239,7 +1240,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
             overrideRenderPos,
         }: SdMapLoaderInput,
     ): Promise<RenderDataResult<SdMapData | undefined>> {
-        console.time(`load map ${mapX},${mapY}`);
+        if (mapProfileEnabled) console.time(`load map ${mapX},${mapY}`);
         this.init();
         state.sceneBuilder.mapFileLoader.setRegionReplacements(mapRegionReplacements);
 
@@ -1307,7 +1308,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
 
         // Apply loc overrides to scene builder (after baseX/baseY are calculated)
         if (locOverrides && locOverrides.size > 0) {
-            console.log(
+            if (mapProfileEnabled) console.log(
                 `[SdMapDataLoader] Received ${locOverrides.size} loc overrides for map (${mapX},${mapY})`,
             );
             state.sceneBuilder.clearLocOverrides();
@@ -1345,7 +1346,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
                     Number.isFinite(overrideValue.matchRotation)
                         ? overrideValue.matchRotation & 0x3
                         : undefined;
-                console.log(`[SdMapDataLoader] Processing override: ${key} -> ${newId}`);
+                if (mapProfileEnabled) console.log(`[SdMapDataLoader] Processing override: ${key} -> ${newId}`);
                 const parts = key.split(",");
                 if (parts.length === 4) {
                     const worldX = parseInt(parts[0]);
@@ -1361,7 +1362,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
                     const moveToSceneY =
                         moveToY !== undefined ? (moveToY | 0) - (baseY | 0) : undefined;
 
-                    console.log(
+                    if (mapProfileEnabled) console.log(
                         `[SdMapDataLoader] Converted world (${worldX},${worldY}) to scene (${sceneX},${sceneY}), baseX=${baseX}, baseY=${baseY}`,
                     );
 
@@ -1446,7 +1447,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
             state.sceneBuilder.clearTerrainOverrides();
         }
 
-        console.time(`build scene ${mapX},${mapY}`);
+        if (mapProfileEnabled) console.time(`build scene ${mapX},${mapY}`);
         let scene: Scene;
         const locLoadType = shouldLoadPartial ? LocLoadType.NO_MODELS : LocLoadType.MODELS;
         if (instanceInput) {
@@ -1498,7 +1499,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
             // are converted from ModelData to Model.
             scene.light(textureLoader, -50, -10, -50);
         }
-        console.timeEnd(`build scene ${mapX},${mapY}`);
+        if (mapProfileEnabled) console.timeEnd(`build scene ${mapX},${mapY}`);
 
         // Terrain does not change for LOC_ADD_CHANGE packets. Keep it in the
         // primary mesh and put mutable non-door locs in their own mesh.
@@ -1575,7 +1576,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
         const locsAnimated = shouldLoadDoorOnly
             ? []
             : locSceneBuf.addLocAnimatedGroups(locAnimatedGroups);
-        console.log(`animated locs: ${locsAnimated.length}`);
+        if (mapProfileEnabled) console.log(`animated locs: ${locsAnimated.length}`);
 
         // Npcs
 
@@ -1754,7 +1755,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
             ),
         );
 
-        console.log(
+        if (mapProfileEnabled) console.log(
             `draw ranges: ${drawRanges.length}, alpha: ${drawRangesAlpha.length}`,
             mapX,
             mapY,
@@ -1778,7 +1779,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
             ),
         );
 
-        console.log(
+        if (mapProfileEnabled) console.log(
             `draw ranges lod: ${drawRangesLod.length}, alpha: ${drawRangesLodAlpha.length}`,
             mapX,
             mapY,
@@ -1802,7 +1803,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
             ),
         );
 
-        console.log(`draw ranges interact: ${drawRangesInteract.length}`, mapX, mapY);
+        if (mapProfileEnabled) console.log(`draw ranges interact: ${drawRangesInteract.length}`, mapX, mapY);
 
         // Interact Lod (non merged)
         const drawRangesInteractLod = sceneBuf.drawCommandsInteractLod.map((cmd) =>
@@ -2057,7 +2058,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
             }
         }
 
-        console.timeEnd(`load map ${mapX},${mapY}`);
+        if (mapProfileEnabled) console.timeEnd(`load map ${mapX},${mapY}`);
 
         const transferables = [
             ...scene.tileRenderFlags.flat().map((buf) => buf.buffer),
@@ -2142,7 +2143,7 @@ export class SdMapDataLoader implements RenderDataLoader<SdMapLoaderInput, SdMap
 
         const totalBytes = transferables.reduce((sum, buf) => sum + buf.byteLength, 0);
 
-        console.log(
+        if (mapProfileEnabled) console.log(
             `total bytes: ${totalBytes} ${mapX},${mapY}`,
             usedTextureIds,
             loadedTextures.size,

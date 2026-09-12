@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 
 import { SoundEffectSystem, type PlaySoundOptions } from "../game/audio/SoundEffectSystem";
 import { ClientScriptLoader } from "../game/cs2/ClientScriptLoader";
@@ -8,6 +10,24 @@ import { GroupMissingError } from "../rs/cache/js5/GroupMissingError";
 import { parseContentRange, validatePartialContentResponse } from "../rs/cache/js5/HttpRange";
 import { PresenceBitset } from "../rs/cache/js5/PresenceBitset";
 import { rebuildGroundItemsForMap } from "../render/render/draw3";
+
+async function shellActivationPreservesGameAssets(): Promise<void> {
+    const handlers = new Map<string, (event: any) => void>();
+    const deleted: string[] = [];
+    runInNewContext(readFileSync(new URL("../public/service-worker.js", import.meta.url), "utf8"), {
+        self: { addEventListener: (name: string, handler: (event: any) => void) => handlers.set(name, handler),
+            clients: { claim: async () => {} } },
+        caches: {
+            keys: async () => ["osrs-typescript-shell-v2", "osrs-typescript-shell-v3",
+                "osrs-typescript::cache::osrs-237", "another-app-cache"],
+            delete: async (key: string) => { deleted.push(key); return true; },
+        },
+    });
+    let completion: Promise<void> | undefined;
+    handlers.get("activate")!({ waitUntil: (promise: Promise<void>) => { completion = promise; } });
+    await completion;
+    assert.deepEqual(deleted, ["osrs-typescript-shell-v2"]);
+}
 
 function contentRangeParsing(): void {
     assert.deepEqual(parseContentRange("bytes 10-19/100"), {
@@ -248,6 +268,7 @@ function groundItemsRetryUntilRendererReady(): void {
 }
 
 async function main(): Promise<void> {
+    await shellActivationPreservesGameAssets();
     contentRangeParsing();
     exactRangeValidation();
     sectorPresenceTracking();

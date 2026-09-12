@@ -25,16 +25,28 @@ export function getContentApiBase(): string | undefined {
     }
 }
 
-/**
- * Fetches a server-defined interface definition - the widget group plus the behaviour the
- * runtime drives it with. Definitions are static per build, so the browser's own ETag
- * revalidation keeps repeat opens to a 304; nothing here caches by hand.
- */
-export async function fetchInterfaceDefinition(groupId: number): Promise<any | undefined> {
+/** Read the same server resources over HTTP or the browser world's content channel. */
+export async function fetchContent(path: string): Promise<any> {
+    if (state.webRtcConfig) {
+        if (!state.socket?.fetchContent) throw new Error("World content connection is unavailable");
+        return state.socket.fetchContent(path);
+    }
     const base = getContentApiBase();
+    if (!base) throw new Error("World content connection is unavailable");
+    const response = await fetch(`${base}${path}`);
+    if (!response.ok) throw new Error(`Content request failed: ${response.status}`);
+    return response.json();
+}
+
+/** Prefer the connected world's definition; static files support older browser hosts. */
+export async function fetchInterfaceDefinition(groupId: number): Promise<any | undefined> {
+    try {
+        return await fetchContent(`/api/interfaces/${groupId | 0}`);
+    } catch (error) {
+        console.warn("[content-api] live interface fetch failed; trying static definition", error);
+    }
     const publicUrl = (process.env.PUBLIC_URL ?? "").replace(/\/$/, "");
     const urls = [
-        ...(base ? [`${base}/api/interfaces/${groupId | 0}`] : []),
         // Browser-host definitions are deployed as static files. A timestamp avoids a
         // stale CDN entry from a prior deployment being treated as a valid 200 response.
         `${publicUrl}/browser-host/interfaces/${groupId | 0}.json?v=${Date.now()}`,

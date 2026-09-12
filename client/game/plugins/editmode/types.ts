@@ -56,9 +56,9 @@ export interface EditModeNpcMenuOption {
 /** The on-disk npc_interactions.json object, keyed by NPC type id. */
 export type EditModeNpcInteractions = Record<string, Record<string, unknown>>;
 
-export type EditModeWorldZoneTag = "pvp" | "multi-combat";
+export type EditModeWorldZoneTag = "pvp" | "multi-combat" | "safe";
 
-export interface EditModeWorldZone {
+export interface EditModeBoundedWorldZone {
     minX: number;
     maxX: number;
     minY: number;
@@ -66,6 +66,16 @@ export interface EditModeWorldZone {
     z: number;
     tags: EditModeWorldZoneTag[];
 }
+
+// Global rules have no rectangle; keep them intact when editing and saving the world.
+export type EditModeWorldZone = EditModeBoundedWorldZone | {
+    minX?: never;
+    maxX?: never;
+    minY?: never;
+    maxY?: never;
+    z?: never;
+    tags: EditModeWorldZoneTag[];
+};
 
 export interface EditModeWorldDefinition {
     spawn: { x: number; y: number; z: number };
@@ -107,7 +117,7 @@ export interface EditModeBuildingProfile {
 }
 
 export interface EditModeEdit extends EditModeTile {
-    kind: "place" | "delete" | "npc" | "terrain" | "clear" | "height" | "flag";
+    kind: "place" | "delete" | "npc" | "terrain" | "clear" | "height" | "flag" | "underlay";
     /** Loc id, NPC type id, overlay id, or explicit terrain height (0-255). */
     locId: number;
     /** Loc shape, or overlay shape for terrain; unused for NPCs. */
@@ -135,6 +145,7 @@ export interface EditModePluginConfig {
     /** Draw selectable map-function sprites at their floor tiles. */
     showMapIcons: boolean;
     showPvpZones: boolean;
+    showSafeZones: boolean;
     showMultiCombatZones: boolean;
     edits: EditModeEdit[];
 }
@@ -243,6 +254,7 @@ export interface EditModeHost {
     loadNpcInteractions?(): Promise<EditModeNpcInteractions>;
     getNpcMenuOptions?(npcTypeId: number): readonly EditModeNpcMenuOption[];
     /** Cache-backed overlay colours for the terrain palette. */
+    isWaterOverlay?(id: number): boolean;
     getOverlaySwatches?(): readonly EditModeOverlaySwatch[];
     loadWorldDefinition?(): Promise<EditModeWorldDefinition>;
     /** Spawns a cache NPC client-side. Returns the synthetic server id used. */
@@ -271,6 +283,10 @@ export interface EditModeHost {
         tile: EditModeTile,
         edits: readonly EditModeEdit[],
     ): { regionId: number; data: Uint8Array };
+    copyArea?(
+        bounds: { minX: number; maxX: number; minY: number; maxY: number },
+        edits: readonly EditModeEdit[],
+    ): string;
     /** Drops the click the client has queued, so a tool press does not also
      *  walk the player or open a menu. */
     cancelPendingClick(): void;

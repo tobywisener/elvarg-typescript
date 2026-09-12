@@ -16,12 +16,10 @@
     "ws": "^8.13.0"
   },
   "devDependencies": {
-    "@fastify/cors": "^11.3.0",
     "@types/adm-zip": "^0.5.8",
     "@types/node": "^18.15.5",
     "@types/nodemon": "^1.19.6",
     "@types/ws": "^8.5.4",
-    "fastify": "^5.10.0",
     "nodemon": "^3.1.9",
     "treemap": "^1.0.4",
     "ts-node": "^10.9.2",
@@ -80,7 +78,6 @@
     "test:loot-keys": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/loot-keys-plugin-smoke.ts",
     "test:ferox-enclave": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/ferox-enclave-plugin-smoke.ts",
     "test:pegasian-boots": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/pegasian-boots-plugin-smoke.ts",
-    "test:barrows": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/barrows-plugin-smoke.ts",
     "test:rejuvenation-pool": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/rejuvenation-pool-smoke.ts",
     "test:bot-preset-pool": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/bot-preset-pool-smoke.ts",
     "test:occult-altar": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/occult-altar-smoke.ts",
@@ -92,7 +89,8 @@
     "test:mobile-list-hooks": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2022\"}' ts-node ./scripts/mobile-list-hooks-smoke.ts",
     "dump:cs2": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/dump-cs2.ts",
     "dump:enum": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/dump-enum.ts",
-    "dump:widget": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/dump-widget.ts"
+    "dump:widget": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/dump-widget.ts",
+    "fetch:prices": "node ./scripts/fetch-prices.mjs"
   },
   "packageManager": "yarn@4.12.0+sha512.f45ab632439a67f8bc759bf32ead036a1f413287b9042726b7cc4818b7b49e14e9423ba49b18f9e06ea4941c1ad062385b1d8760a8d5091a1a31e5f6219afca8"
 }

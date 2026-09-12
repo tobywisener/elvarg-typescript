@@ -38,6 +38,11 @@ export class Js5RangeClient {
     private readonly pending = new Map<string, PendingGroup>();
     private readonly fetchedListeners: RangeFetchedListener[] = [];
     private activeFetches = 0;
+    private downloadedBytes = 0;
+
+    getProgress(): { pending: number; active: number; downloadedBytes: number } {
+        return { pending: this.pending.size, active: this.activeFetches, downloadedBytes: this.downloadedBytes };
+    }
     private readonly inFlightRanges: Array<{ start: number; end: number }> = [];
     private scheduled = false;
 
@@ -202,9 +207,11 @@ export class Js5RangeClient {
     private async fetchBatch(batch: FetchBatch): Promise<void> {
         this.activeFetches++;
         const startedAt = performance.now();
-        const profile = new URLSearchParams(globalThis.location?.search).get("map-profile") === "1";
+        const params = new URLSearchParams(globalThis.location?.search);
+        const profile = params.get("map-profile") === "1";
         try {
             const bytes = await this.fetchRange(batch.start, batch.end - batch.start);
+            this.downloadedBytes += bytes.byteLength;
             this.store.applyRange(batch.start, bytes);
             this.notifyFetched(batch.start, bytes);
             if (profile) console.info(`[js5-profile] range groups=${batch.groups.length} bytes=${bytes.byteLength} elapsed=${Math.round(performance.now() - startedAt)}ms pending=${this.pending.size} active=${this.activeFetches}`);

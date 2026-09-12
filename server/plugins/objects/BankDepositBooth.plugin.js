@@ -2,7 +2,6 @@ const { Bank } = require("../../src/main/typescript/elvarg/game/model/container/
 const { Animation } = require("../../src/main/typescript/elvarg/game/model/Animation");
 const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
-const { ObjectIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
 
 let pluginApi;
 
@@ -26,10 +25,6 @@ const QUANTITY_INPUT_VARP = 1794;
 const QUANTITY_ATTRIBUTE = "bank-deposit-box:quantity";
 const DEPOSIT_ANIMATION = new Animation(834); // seq.human_leverdown
 const CONTAINER_FLAGS = 0x2047e; // Op1-6, Op10, Depth1
-
-const DEPOSIT_BOX_IDS = Object.entries(ObjectIds)
-  .filter(([name, id]) => /^BANK_DEPOSIT_BOX(?:_\d+)?$/.test(name) && Number.isInteger(id))
-  .map(([, id]) => id);
 
 function refresh(player) {
   const sender = player?.getPacketSender?.();
@@ -141,8 +136,7 @@ function handleDepositButton(player, button) {
 }
 
 function isDepositBooth(event) {
-  if (DEPOSIT_BOX_IDS.includes(event.objectId)) return true;
-  const name = event.object?.getDefinition?.()?.name;
+  const name = event.object?.getDefinition?.()?.getName?.();
   return typeof name === "string" && name.trim().toLowerCase() === "bank deposit box";
 }
 
@@ -165,16 +159,16 @@ function promptItemOnBooth(event) {
   pluginApi.sendMultiChatboxPrompt(player, "How many would you like to deposit?", ...options);
 }
 
+function openDepositBox({ player }) {
+  if (pluginApi.emitCanBank(player) !== false) open(player);
+}
+
 module.exports = {
   name: "BankDepositBooth",
   register(api) {
     pluginApi = api;
-    api.onObjectFirstClick(DEPOSIT_BOX_IDS, (event) => {
-      if (!isDepositBooth(event)) return;
-      event.handled = true;
-      if (pluginApi.emitCanBank(event.player) === false) return;
-      open(event.player);
-    });
+    api.onObjectInteraction("Bank deposit box", { Deposit: openDepositBox });
+    api.onObjectInteraction("Bank Deposit Box", { Deposit: openDepositBox });
 
     api.onItemAction((event) => {
       if (handleDepositContainerAction(event.player, event.interfaceId, event.itemId, event.slot, event.clickType)) {

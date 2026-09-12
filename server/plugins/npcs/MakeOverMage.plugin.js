@@ -1,4 +1,3 @@
-const { NpcIdentifiers } = require("../../src/main/typescript/elvarg/util/NpcIdentifiers");
 const { DialogueChainBuilder } = require("../../src/main/typescript/elvarg/game/model/dialogues/builders/DialogueChainBuilder");
 const { NpcDialogue } = require("../../src/main/typescript/elvarg/game/model/dialogues/entries/impl/NpcDialogue");
 const { EndDialogue } = require("../../src/main/typescript/elvarg/game/model/dialogues/entries/impl/EndDialogue");
@@ -9,11 +8,6 @@ const WELCOME_PLAY_BUTTON_UID = (378 << 16) | 72;
 const MAKEOVER_COMMANDS = ["mm", "makeover", "makeovermage"];
 const MAKEOVER_HINT = "If you ever want to change your appearance again, type ::mm ingame";
 
-const MAKEOVER_NPC_IDS = [
-  NpcIdentifiers.MAKEOVER_MAGE,
-  NpcIdentifiers.MAKEOVER_MAGE_2,
-  NpcIdentifiers.MAKEOVER_MAGE_3,
-].filter((id) => Number.isInteger(id));
 
 function startMakeoverDialogue(player, npcId) {
   const dialogue = new DialogueChainBuilder().add(
@@ -39,6 +33,14 @@ function canOpenMakeover(player, combatFactory) {
     !combatFactory.inCombat(player) &&
     !player.getDialogueManager?.()?.isActive?.() &&
     !player.getPacketSender?.().hasInterruptibleInterface?.();
+}
+
+function talkToMakeoverMage({ player, npcId }) {
+  startMakeoverDialogue(player, npcId);
+}
+
+function openMakeover({ player }) {
+  return openMakeoverInterface(player);
 }
 
 module.exports = {
@@ -80,27 +82,12 @@ module.exports = {
       });
     }
 
-    api.onNpcFirstClick(MAKEOVER_NPC_IDS, function talkToMakeoverMage(event) {
-      startMakeoverDialogue(event.player, event.npcId);
-      event.handled = true;
-      return true;
+    api.onNpcInteraction("Makeover Mage", {
+      "Talk-to": talkToMakeoverMage,
+      Makeover: openMakeover,
     });
 
-    function openMakeover(event) {
-      if (!openMakeoverInterface(event.player)) {
-        return false;
-      }
-      event.handled = true;
-      return true;
-    }
-    api.onNpcThirdClick(NpcIdentifiers.MAKEOVER_MAGE_3, openMakeover);
-    api.onNpcFourthClick([
-      NpcIdentifiers.MAKEOVER_MAGE,
-      NpcIdentifiers.MAKEOVER_MAGE_2,
-    ], openMakeover);
-
     api.log("registered", {
-      npcIds: MAKEOVER_NPC_IDS,
       interfaceId: MAKEOVER_INTERFACE_ID,
     });
   },

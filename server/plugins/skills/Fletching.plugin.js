@@ -881,7 +881,7 @@ module.exports = {
         );
         event.handled = true;
       }
-    });
+    }, { noted: false });
 
     api.log("registered", {
       logMenus: LOG_RECIPES_BY_LOG.size,

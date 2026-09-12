@@ -6,27 +6,30 @@ const { Location } = require("../../src/main/typescript/elvarg/game/model/Locati
 const { TeleportHandler } = require("../../src/main/typescript/elvarg/game/model/teleportation/TeleportHandler");
 const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
-const { ItemIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
+const { ItemIds, ObjectIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
 const { Pets } = require("../npcs/Pets.plugin");
 
 const CRAFT_RUNES_GRAPHIC = new Graphic(186);
 const CRAFT_RUNES_ANIMATION = new Animation(791);
 
+// Rune altars share the same name and action; IDs distinguish their rune types.
 const RUNES_BY_ALTAR_ID = new Map([
-  [14897, { runeId: ItemIds.AIR_RUNE, level: 1, xp: 5, pureOnly: false, multiplier: [[11, 2], [22, 3], [33, 4], [44, 5], [55, 6], [66, 7], [77, 8], [88, 9], [99, 10]] }],
-  [14898, { runeId: ItemIds.MIND_RUNE, level: 2, xp: 6, pureOnly: false, multiplier: [[14, 2], [28, 3], [42, 4], [56, 5], [70, 6], [84, 7], [98, 8]] }],
-  [14899, { runeId: ItemIds.WATER_RUNE, level: 5, xp: 7, pureOnly: false, multiplier: [[19, 2], [38, 3], [57, 4], [76, 5], [95, 6]] }],
-  [14900, { runeId: ItemIds.EARTH_RUNE, level: 9, xp: 8, pureOnly: false, multiplier: [[26, 2], [52, 3], [78, 4]] }],
-  [14901, { runeId: ItemIds.FIRE_RUNE, level: 14, xp: 9, pureOnly: false, multiplier: [[35, 2], [70, 3]] }],
-  [14902, { runeId: ItemIds.BODY_RUNE, level: 20, xp: 10, pureOnly: false, multiplier: [[46, 2], [92, 3]] }],
-  [14903, { runeId: ItemIds.COSMIC_RUNE, level: 27, xp: 11, pureOnly: true, multiplier: [[59, 2]] }],
-  [14906, { runeId: ItemIds.CHAOS_RUNE, level: 35, xp: 12, pureOnly: true, multiplier: [[74, 2]] }],
-  [14911, { runeId: ItemIds.ASTRAL_RUNE, level: 40, xp: 13, pureOnly: true, multiplier: [[82, 2]] }],
-  [14905, { runeId: ItemIds.NATURE_RUNE, level: 44, xp: 14, pureOnly: true, multiplier: [[91, 2]] }],
-  [14904, { runeId: ItemIds.LAW_RUNE, level: 54, xp: 15, pureOnly: true, multiplier: [] }],
-  [14907, { runeId: ItemIds.DEATH_RUNE, level: 65, xp: 16, pureOnly: true, multiplier: [] }],
-  [27978, { runeId: ItemIds.BLOOD_RUNE, level: 75, xp: 27, pureOnly: true, multiplier: [] }],
+  [ObjectIds.ALTAR_33, { runeId: ItemIds.AIR_RUNE, level: 1, xp: 5, pureOnly: false, multiplier: [[11, 2], [22, 3], [33, 4], [44, 5], [55, 6], [66, 7], [77, 8], [88, 9], [99, 10]] }],
+  [ObjectIds.ALTAR_34, { runeId: ItemIds.MIND_RUNE, level: 2, xp: 6, pureOnly: false, multiplier: [[14, 2], [28, 3], [42, 4], [56, 5], [70, 6], [84, 7], [98, 8]] }],
+  [ObjectIds.ALTAR_35, { runeId: ItemIds.WATER_RUNE, level: 5, xp: 7, pureOnly: false, multiplier: [[19, 2], [38, 3], [57, 4], [76, 5], [95, 6]] }],
+  [ObjectIds.ALTAR_36, { runeId: ItemIds.EARTH_RUNE, level: 9, xp: 8, pureOnly: false, multiplier: [[26, 2], [52, 3], [78, 4]] }],
+  [ObjectIds.ALTAR_37, { runeId: ItemIds.FIRE_RUNE, level: 14, xp: 9, pureOnly: false, multiplier: [[35, 2], [70, 3]] }],
+  [ObjectIds.ALTAR_38, { runeId: ItemIds.BODY_RUNE, level: 20, xp: 10, pureOnly: false, multiplier: [[46, 2], [92, 3]] }],
+  [ObjectIds.ALTAR_39, { runeId: ItemIds.COSMIC_RUNE, level: 27, xp: 11, pureOnly: true, multiplier: [[59, 2]] }],
+  [ObjectIds.ALTAR_55, { runeId: ItemIds.CHAOS_RUNE, level: 35, xp: 12, pureOnly: true, multiplier: [[74, 2]] }],
+  [ObjectIds.ALTAR_57, { runeId: ItemIds.ASTRAL_RUNE, level: 40, xp: 13, pureOnly: true, multiplier: [[82, 2]] }],
+  [ObjectIds.ALTAR_46, { runeId: ItemIds.NATURE_RUNE, level: 44, xp: 14, pureOnly: true, multiplier: [[91, 2]] }],
+  [ObjectIds.ALTAR_40, { runeId: ItemIds.LAW_RUNE, level: 54, xp: 15, pureOnly: true, multiplier: [] }],
+  [ObjectIds.ALTAR_56, { runeId: ItemIds.DEATH_RUNE, level: 65, xp: 16, pureOnly: true, multiplier: [] }],
+  [ObjectIds.BLOOD_ALTAR, { runeId: ItemIds.BLOOD_RUNE, level: 75, xp: 27, pureOnly: true, multiplier: [] }],
 ]);
+
+RUNES_BY_ALTAR_ID.set(ObjectIds.ALTAR_83, RUNES_BY_ALTAR_ID.get(ObjectIds.BLOOD_ALTAR));
 
 const TALISMANS = new Map([
   [ItemIds.AIR_TALISMAN, { level: 1, x: 2841, y: 4828 }],
@@ -195,68 +198,71 @@ function handlePouchAction(player, itemId, clickType) {
   return false;
 }
 
+function handleCraftRunes(event) {
+  const runeData = RUNES_BY_ALTAR_ID.get(event.objectId);
+  if (!runeData) {
+    return false;
+  }
+
+  const player = event.player;
+  const level = player.getSkillManager().getCurrentLevel(Skill.RUNECRAFTING);
+  if (level < runeData.level) {
+    player
+      .getPacketSender()
+      .sendMessage(
+        `You need a Runecrafting level of at least ${runeData.level} to craft this.`
+      );
+    event.handled = true;
+    return;
+  }
+
+  const essenceId = runeData.pureOnly
+    ? ItemIds.PURE_ESSENCE
+    : player.getInventory().contains(ItemIds.RUNE_ESSENCE)
+      ? ItemIds.RUNE_ESSENCE
+      : player.getInventory().contains(ItemIds.PURE_ESSENCE)
+        ? ItemIds.PURE_ESSENCE
+        : -1;
+
+  if (essenceId === -1) {
+    player
+      .getPacketSender()
+      .sendMessage(
+        runeData.pureOnly
+          ? "You need Pure essence to craft runes using this altar."
+          : "You don't have any essence in your inventory."
+      );
+    event.handled = true;
+    return;
+  }
+
+  const amountPerEssence = runeMultiplier(level, runeData);
+  let craftedEssence = 0;
+  while (player.getInventory().contains(essenceId)) {
+    player.getInventory().deleteNumber(essenceId, 1);
+    player.getInventory().addItem(new Item(runeData.runeId, amountPerEssence));
+    craftedEssence++;
+  }
+
+  if (craftedEssence > 0) {
+    player.performGraphic(CRAFT_RUNES_GRAPHIC);
+    player.performAnimation(CRAFT_RUNES_ANIMATION);
+    Sounds.sendSound(player, Sound.CRAFT_RUNES);
+    Sounds.sendSound(player, Sound.RUNECRAFTING);
+    player
+      .getSkillManager()
+      .addExperiences(Skill.RUNECRAFTING, craftedEssence * runeData.xp);
+    Pets.onSkill(player, Skill.RUNECRAFTING);
+  }
+
+  event.handled = true;
+}
+
 module.exports = {
   name: "Runecrafting",
   register(api) {
-    api.onObjectFirstClick([...RUNES_BY_ALTAR_ID.keys()], (event) => {
-      const runeData = RUNES_BY_ALTAR_ID.get(event.objectId);
-      if (!runeData) {
-        return;
-      }
-
-      const player = event.player;
-      const level = player.getSkillManager().getCurrentLevel(Skill.RUNECRAFTING);
-      if (level < runeData.level) {
-        player
-          .getPacketSender()
-          .sendMessage(
-            `You need a Runecrafting level of at least ${runeData.level} to craft this.`
-          );
-        event.handled = true;
-        return;
-      }
-
-      const essenceId = runeData.pureOnly
-        ? ItemIds.PURE_ESSENCE
-        : player.getInventory().contains(ItemIds.RUNE_ESSENCE)
-          ? ItemIds.RUNE_ESSENCE
-          : player.getInventory().contains(ItemIds.PURE_ESSENCE)
-            ? ItemIds.PURE_ESSENCE
-            : -1;
-
-      if (essenceId === -1) {
-        player
-          .getPacketSender()
-          .sendMessage(
-            runeData.pureOnly
-              ? "You need Pure essence to craft runes using this altar."
-              : "You don't have any essence in your inventory."
-          );
-        event.handled = true;
-        return;
-      }
-
-      const amountPerEssence = runeMultiplier(level, runeData);
-      let craftedEssence = 0;
-      while (player.getInventory().contains(essenceId)) {
-        player.getInventory().deleteNumber(essenceId, 1);
-        player.getInventory().addItem(new Item(runeData.runeId, amountPerEssence));
-        craftedEssence++;
-      }
-
-      if (craftedEssence > 0) {
-        player.performGraphic(CRAFT_RUNES_GRAPHIC);
-        player.performAnimation(CRAFT_RUNES_ANIMATION);
-        Sounds.sendSound(player, Sound.CRAFT_RUNES);
-        Sounds.sendSound(player, Sound.RUNECRAFTING);
-        player
-          .getSkillManager()
-          .addExperiences(Skill.RUNECRAFTING, craftedEssence * runeData.xp);
-        Pets.onSkill(player, Skill.RUNECRAFTING);
-      }
-
-      event.handled = true;
-    });
+    api.onObjectInteraction("Altar", { "Craft-rune": handleCraftRunes });
+    api.onObjectInteraction("Blood Altar", { Bind: handleCraftRunes });
 
     api.onItemAction((event) => {
       const { player, itemId, clickType } = event;

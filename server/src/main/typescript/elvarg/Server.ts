@@ -33,7 +33,6 @@ export class Server {
   private static consolePatched = false;
   private static shuttingDown = false;
   private static gracefulHandlersInstalled = false;
-  private static stopDevelopmentApi: (() => Promise<void>) | null = null;
 
   private static setupFileLogging() {
     if (Server.consolePatched) return;
@@ -156,8 +155,6 @@ export class Server {
       PluginManager.emitServerShutdown({ timestamp: Date.now() });
       World.savePlayers();
       await GameConstants.PLAYER_PERSISTENCE.flush();
-      await Server.stopDevelopmentApi?.();
-      Server.stopDevelopmentApi = null;
       console.info("[shutdown] Player persistence completed.");
     } catch (err) {
       console.error("[shutdown] Player persistence failed.", err);
@@ -221,11 +218,6 @@ export class Server {
       // Start game logic (schedules GameEngine ticks, loads definitions, etc.)
       new GameBuilder().initialize();
       new NetworkBuilder().initialize(NetworkConstants.WEBSOCKET_PORT);
-      if (!Server.PRODUCTION) {
-        const { DevelopmentApiServer } = require("./net/development/DevelopmentApiServer") as typeof import("./net/development/DevelopmentApiServer");
-        DevelopmentApiServer.start();
-        Server.stopDevelopmentApi = () => DevelopmentApiServer.stop();
-      }
     } catch (e) {
       console.log(e, "error");
       console.error(`An error occurred while binding the Bootstrap: ${e}`);

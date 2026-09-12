@@ -6,7 +6,7 @@ const { ItemDefinition } = require("../../src/main/typescript/elvarg/game/defini
 const { MapObjects } = require("../../src/main/typescript/elvarg/game/entity/impl/object/MapObjects");
 const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
-const { ItemIds, ObjectIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
+const { ItemIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
 
 const COOK_ANIMATION = new Animation(896);
 const COOK_INTERVAL_TICKS = 4;
@@ -58,18 +58,7 @@ const COOKABLES = Object.freeze([
 
 const COOKABLE_BY_RAW = new Map(COOKABLES.map((cookable) => [cookable.raw, cookable]));
 
-const COOKABLE_OBJECT_IDS = new Set([
-  ObjectIds.COOKING_RANGE,
-  ObjectIds.COOKING_RANGE_2,
-  ObjectIds.COOKING_RANGE_3,
-  ObjectIds.COOKING_RANGE_4,
-  ObjectIds.COOKING_RANGE_5,
-  ObjectIds.COOKING_RANGE_6,
-  ObjectIds.STOVE_4,
-  ObjectIds.IRON_SPIT,
-  ObjectIds.FIRE_5,
-  ObjectIds.FIRE_23,
-]);
+const COOKABLE_OBJECT_NAMES = new Set(["Cooking range", "Range", "Stove", "Fire"]);
 
 function isSuccess(player, cookable) {
   const cookingLevel = player.getSkillManager().getCurrentLevel(Skill.COOKING);
@@ -202,6 +191,30 @@ class CookingTask extends Task {
 
 let TaskManager;
 
+function handleCook(activeSessions, event) {
+  const definition = event.object.getDefinition();
+  const actions = definition.getInteractions() ?? [];
+  if (!COOKABLE_OBJECT_NAMES.has(definition.getName())
+    || (actions.some(Boolean) && !actions.includes("Cook"))) {
+    return;
+  }
+
+  const cookable = COOKABLE_BY_RAW.get(event.itemId);
+  if (!cookable) {
+    return;
+  }
+
+  const started = startCooking(
+    event.player,
+    event.object,
+    cookable,
+    activeSessions
+  );
+  if (started) {
+    event.handled = true;
+  }
+}
+
 module.exports = {
   name: "Cooking",
   register(api) {
@@ -216,30 +229,11 @@ module.exports = {
       stopCooking(activeSessions, player, false);
     });
 
-    api.onItemOnObject((event) => {
-      if (!COOKABLE_OBJECT_IDS.has(event.objectId)) {
-        return;
-      }
-
-      const cookable = COOKABLE_BY_RAW.get(event.itemId);
-      if (!cookable) {
-        return;
-      }
-
-      const started = startCooking(
-        event.player,
-        event.object,
-        cookable,
-        activeSessions
-      );
-      if (started) {
-        event.handled = true;
-      }
-    });
+    api.onItemOnObject(handleCook.bind(null, activeSessions), { noted: false });
 
     api.log("registered", {
       cookables: COOKABLES.length,
-      cookObjectIds: COOKABLE_OBJECT_IDS.size,
+      cookObjectNames: COOKABLE_OBJECT_NAMES.size,
     });
   },
 };

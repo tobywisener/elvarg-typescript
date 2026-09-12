@@ -51,10 +51,6 @@ const MAX_COMMENDATIONS = 4000;
 const ATTR_WAITING_BOAT = "pest-control:waiting-boat";
 const PEST_CONTROL_POINTS = "PEST_CONTROL_POINTS";
 const VOID_KNIGHT_SHOP = 11;
-const VOID_KNIGHT_IDS = [
-  NpcIdentifiers.VOID_KNIGHT, NpcIdentifiers.VOID_KNIGHT_2, NpcIdentifiers.VOID_KNIGHT_3, NpcIdentifiers.VOID_KNIGHT_4,
-  NpcIdentifiers.VOID_KNIGHT_5, NpcIdentifiers.VOID_KNIGHT_6, NpcIdentifiers.VOID_KNIGHT_7, NpcIdentifiers.VOID_KNIGHT_8,
-];
 const BOT_DEFEND_OFFSETS = [
   [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1],
   [-2, 0], [-1, 0], [1, 0], [2, 0],
@@ -1138,25 +1134,8 @@ function createPestControl(api) {
     if (match instanceof PestControlMatch && match.handleObject(event.player, event.object, event.clickType)) event.handled = true;
   });
 
-  api.onNpcFirstClick(VOID_KNIGHT_IDS, (event) => {
-    if (OUTPOST.inside(event.player.getLocation())) {
-      ShopManager.open(event.player, VOID_KNIGHT_SHOP);
-      event.handled = true;
-    }
-  });
-
-  api.onNpcInteraction((event) => {
-    const match = event.player.getAttribute?.("pest-control:match");
-    if (!(match instanceof PestControlMatch) || event.npc !== match.squire) return;
-    if (event.clickType === 3) {
-      event.player.getPacketSender().sendMessage("You leave the island before the battle is over.");
-      match.area.leave(event.player, false);
-      event.player.moveTo(OUTPOST_RETURN.clone());
-    } else {
-      event.player.getPacketSender().sendMessage("Destroy the portals while keeping the Void Knight alive.");
-    }
-    event.handled = true;
-  });
+  api.onNpcInteraction("Void Knight", { Exchange: exchangeRewards });
+  api.onNpcInteraction("Squire", { "Talk-to": talkToMatchSquire, Leave: leaveMatch });
 
   api.onCanAttack((event) => {
     const player = event.attacker?.getAsPlayer?.();
@@ -1211,6 +1190,25 @@ function createPestControl(api) {
       event.disabled = true;
     }
   });
+}
+
+function exchangeRewards({ player }) {
+  if (!OUTPOST.inside(player.getLocation())) return false;
+  ShopManager.open(player, VOID_KNIGHT_SHOP);
+}
+
+function talkToMatchSquire({ player, npc }) {
+  const match = player.getAttribute?.("pest-control:match");
+  if (!(match instanceof PestControlMatch) || npc !== match.squire) return false;
+  player.getPacketSender().sendMessage("Destroy the portals while keeping the Void Knight alive.");
+}
+
+function leaveMatch({ player, npc }) {
+  const match = player.getAttribute?.("pest-control:match");
+  if (!(match instanceof PestControlMatch) || npc !== match.squire) return false;
+  player.getPacketSender().sendMessage("You leave the island before the battle is over.");
+  match.area.leave(player, false);
+  player.moveTo(OUTPOST_RETURN.clone());
 }
 
 module.exports = {
