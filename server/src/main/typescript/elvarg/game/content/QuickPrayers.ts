@@ -121,7 +121,19 @@ export class QuickPrayers {
     private static readonly SETUP_BUTTON = 1506;
     private static readonly CONFIRM_BUTTON = 17232;
     private static readonly QUICK_PRAYERS_TAB_INTERFACE_ID = 17200;
-    private static readonly CONFIG_START = 620;
+    private static readonly PRAYER_WIDGET_GROUP_ID = 541;
+    private static readonly QUICK_PRAYER_WIDGET_CHILD_ID = 4;
+    private static readonly MINIMAP_WIDGET_GROUP_ID = 160;
+    private static readonly MINIMAP_PRAYER_ORB_CHILD_ID = 20;
+    private static readonly SETUP_WIDGET_GROUP_ID = 77;
+    private static readonly SETUP_WIDGET_CHILD_ID = 4;
+    private static readonly SETUP_DONE_CHILD_ID = 5;
+    private static readonly PRAYER_ALL_ACTIVE_VARBIT = 4101;
+    private static readonly QUICK_PRAYER_SELECTED_VARBIT = 4102;
+    private static readonly QUICK_PRAYER_SLOT_BY_ID = [
+        0, 1, 2, 18, 19, 3, 4, 5, 6, 7, 8, 20, 21, 9, 10,
+        11, 12, 13, 14, 22, 23, 15, 16, 17, 28, 25, 26, 24, 27,
+    ];
 
     private player: Player;
     public prayers: PrayerData[] = Array.from(
@@ -136,22 +148,18 @@ export class QuickPrayers {
     }
 
     public sendChecks(): void {
-        for (const prayer of QuickPrayers.PRAYER_VALUES) {
-            this.sendCheck(prayer);
-        }
+        this.player.getPacketSender().sendVarbit(
+            QuickPrayers.QUICK_PRAYER_SELECTED_VARBIT,
+            this.selectedPrayerMask(),
+        );
     }
 
-    private sendCheck(prayer: PrayerData): void {
-        const prayerIndex = QuickPrayers.PRAYER_VALUES.indexOf(prayer);
-        if (prayerIndex === -1) {
-            return;
+    private selectedPrayerMask(): number {
+        let selected = 0;
+        for (const [prayerId, prayer] of this.prayers.entries()) {
+            if (prayer != null) selected |= 1 << QuickPrayers.QUICK_PRAYER_SLOT_BY_ID[prayerId];
         }
-        this.player
-            .getPacketSender()
-            .sendConfig(
-                QuickPrayers.CONFIG_START + prayerIndex,
-                this.prayers[prayerIndex] != null ? 0 : 1
-            );
+        return selected;
     }
 
     private uncheckSelect(toDeselect: number[], exception: number): void {
@@ -159,7 +167,7 @@ export class QuickPrayers {
             if (i === exception) {
                 continue;
             }
-            this.uncheck(PrayerData.values()[i]);
+            this.uncheck(QuickPrayers.PRAYER_VALUES[i]);
         }
     }
 
@@ -167,7 +175,7 @@ export class QuickPrayers {
         const prayerIndex = QuickPrayers.PRAYER_VALUES.indexOf(prayer);
         if (prayerIndex !== -1 && this.prayers[prayerIndex] != null) {
             this.prayers[prayerIndex] = null;
-            this.sendCheck(prayer);
+            this.sendChecks();
         }
     }
 
@@ -188,7 +196,7 @@ export class QuickPrayers {
         }
 
         this.prayers[index] = prayer;
-        this.sendCheck(prayer);
+        this.sendChecks();
 
         switch (index) {
             case QuickPrayers.THICK_SKIN:
@@ -245,61 +253,111 @@ export class QuickPrayers {
     }
 
     public checkActive(): void {
-        if (this.enabled) {
-            for (const prayer of this.prayers) {
-                if (prayer === null) continue;
-                const prayerIndex = QuickPrayers.PRAYER_VALUES.indexOf(prayer);
-                if (prayerIndex !== -1 && QuickPrayers.isActivated(this.player, prayerIndex)) {
-                    return;
-                }
+        if (!this.enabled) return;
+        for (const [prayerId, prayer] of this.prayers.entries()) {
+            if ((prayer != null) !== QuickPrayers.isActivated(this.player, prayerId)) {
+                this.enabled = false;
+                this.player.getPacketSender().sendQuickPrayersState(false);
+                return;
             }
+        }
+    }
+
+    public sync(): void {
+        this.sendChecks();
+        this.player.getPacketSender().sendQuickPrayersState(this.enabled);
+    }
+
+    private openSetup(): void {
+        this.sendChecks();
+        this.player.getPacketSender()
+            .sendTabInterface(5, QuickPrayers.QUICK_PRAYERS_TAB_INTERFACE_ID)
+            .sendTab(5)
+            .sendInterfaceFlagsRange(
+                (QuickPrayers.SETUP_WIDGET_GROUP_ID << 16) | QuickPrayers.SETUP_WIDGET_CHILD_ID,
+                0,
+                QuickPrayers.PRAYER_VALUES.length - 1,
+                1 << 1,
+            );
+        this.selectingPrayers = true;
+    }
+
+    private toggleQuickPrayers(): void {
+        if (this.player.getSkillManager().getCurrentLevel(Skill.PRAYER) <= 0) {
+            this.player.getPacketSender().sendMessage("You don't have enough Prayer points.");
+            return;
+        }
+        if (this.enabled) {
+            PrayerHandler.deactivatePrayers(this.player);
+            this.player.getPacketSender().sendVarbit(QuickPrayers.PRAYER_ALL_ACTIVE_VARBIT, 0);
+            this.enabled = false;
+        } else {
+            const selected = this.prayers.filter((prayer): prayer is PrayerData => prayer != null);
+            const blocked = selected.find((prayer) => !QuickPrayers.canUse(this.player, prayer, false));
+            if (selected.length === 0) {
+                this.player.getPacketSender().sendMessage("You have not setup any quick-prayers yet.");
+                this.enabled = false;
+            } else if (blocked) {
+                QuickPrayers.canUse(this.player, blocked, true);
+                this.enabled = false;
+            } else {
+                PrayerHandler.deactivatePrayers(this.player);
+                this.player.getPacketSender().sendVarbit(
+                    QuickPrayers.PRAYER_ALL_ACTIVE_VARBIT,
+                    this.selectedPrayerMask(),
+                );
+                for (const prayer of selected) {
+                    QuickPrayers.activatePrayerPrayerId(this.player, prayer.prayerId);
+                }
+                this.enabled = selected.every((prayer) => QuickPrayers.isActivated(this.player, prayer.prayerId));
+            }
+        }
+        this.player.getPacketSender().sendQuickPrayersState(this.enabled);
+    }
+
+    public handleWidgetAction(groupId: number, childId: number, buttonNum = 1, slot?: number): boolean {
+        if (groupId === QuickPrayers.PRAYER_WIDGET_GROUP_ID && childId === QuickPrayers.QUICK_PRAYER_WIDGET_CHILD_ID) {
+            if (buttonNum === 2) {
+                this.setPrayers(QuickPrayers.PRAYER_VALUES.map((prayer, prayerId) =>
+                    QuickPrayers.isActivated(this.player, prayerId) ? prayer : null,
+                ));
+                this.sync();
+            } else this.toggleQuickPrayers();
+            return true;
+        }
+        if (groupId === QuickPrayers.MINIMAP_WIDGET_GROUP_ID && childId === QuickPrayers.MINIMAP_PRAYER_ORB_CHILD_ID) {
+            if (buttonNum === 2) this.openSetup();
+            else this.toggleQuickPrayers();
+            return true;
+        }
+        if (groupId === QuickPrayers.SETUP_WIDGET_GROUP_ID && childId === QuickPrayers.SETUP_WIDGET_CHILD_ID && slot != null) {
+            const prayerId = QuickPrayers.QUICK_PRAYER_SLOT_BY_ID.indexOf(slot);
+            if (prayerId === -1) return false;
+            this.toggle(prayerId);
             this.enabled = false;
             this.player.getPacketSender().sendQuickPrayersState(false);
+            return true;
         }
+        if (groupId === QuickPrayers.SETUP_WIDGET_GROUP_ID && childId === QuickPrayers.SETUP_DONE_CHILD_ID) {
+            this.player.getPacketSender().sendTabInterface(5, 5608);
+            this.selectingPrayers = false;
+            return true;
+        }
+        return false;
     }
 
 
     public handleButton(button: number): boolean {
         switch (button) {
             case QuickPrayers.TOGGLE_QUICK_PRAYERS:
-                if (this.player.getSkillManager().getCurrentLevel(Skill.PRAYER) <= 0) {
-                    this.player.getPacketSender().sendMessage("You don't have enough Prayer points.");
-                    return true;
-                }
-                if (this.enabled) {
-                    for (const prayer of this.prayers) {
-                        if (prayer === null) continue;
-                        const prayerIndex = QuickPrayers.PRAYER_VALUES.indexOf(prayer);
-                        if (prayerIndex !== -1) {
-                            QuickPrayers.deactivatePrayer(this.player, prayerIndex);
-                        }
-                    }
-                    this.enabled = false;
-                } else {
-                    let found = false;
-                    for (const prayer of this.prayers) {
-                        if (prayer === null) continue;
-                        const prayerIndex = QuickPrayers.PRAYER_VALUES.indexOf(prayer);
-                        if (prayerIndex !== -1) {
-                            QuickPrayers.activatePrayerPrayerId(this.player, prayerIndex);
-                            found = true;
-                        }
-                    }
-                    if (!found) {
-                        this.player.getPacketSender().sendMessage("You have not setup any quick-prayers yet.");
-                    }
-                    this.enabled = found;
-                }
-                this.player.getPacketSender().sendQuickPrayersState(this.enabled);
+                this.toggleQuickPrayers();
                 break;
             case QuickPrayers.SETUP_BUTTON:
                 if (this.selectingPrayers) {
                     this.player.getPacketSender().sendTabInterface(5, 5608).sendTab(5);
                     this.selectingPrayers = false;
                 } else {
-                    this.sendChecks();
-                    this.player.getPacketSender().sendTabInterface(5, QuickPrayers.QUICK_PRAYERS_TAB_INTERFACE_ID).sendTab(5);
-                    this.selectingPrayers = true;
+                    this.openSetup();
                 }
                 break;
             case QuickPrayers.CONFIRM_BUTTON:
@@ -333,5 +391,6 @@ export class QuickPrayers {
             (_, index) => prayers?.[index] ?? null
         );
         this.prayers = normalized;
+        this.enabled = false;
     }
 }
