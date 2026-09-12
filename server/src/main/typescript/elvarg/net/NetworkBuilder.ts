@@ -32,7 +32,6 @@ import {
   encodeLoginResponse,
   encodeLogoutResponse,
   encodeWelcome,
-  MAIN_INVENTORY_GROUP_ID,
   PlayerAppearance,
 } from "./protocol/ClientProtocol";
 import {
