@@ -9,7 +9,6 @@ let pluginApi;
 const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
 const { ItemIds, ObjectIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
-const { Pets } = require("../npcs/Pets.plugin");
 
 const SESSION_MODE = Object.freeze({
   INVENTORY: "inventory",
@@ -309,7 +308,7 @@ function completeInventoryOrGroundFire(player, state) {
 
   spawnFire(player, state.location, state.log.respawnTicks);
   player.getSkillManager().addExperiences(Skill.FIREMAKING, state.log.xpReward);
-  Pets.onSkill(player, Skill.FIREMAKING);
+  pluginApi.emitCustomEvent("firemaking:success", { player, skill: Skill.FIREMAKING });
   Sounds.sendSound(player, Sound.FIRE_SUCCESSFUL);
   player.getPacketSender().sendMessage("The logs catch fire and begin to burn.");
   return true;
@@ -327,7 +326,7 @@ function completeBonfire(player, state) {
 
   player.getInventory().deleteNumber(state.log.itemId, 1);
   player.getSkillManager().addExperiences(Skill.FIREMAKING, state.log.xpReward);
-  Pets.onSkill(player, Skill.FIREMAKING);
+  pluginApi.emitCustomEvent("firemaking:success", { player, skill: Skill.FIREMAKING });
   Sounds.sendSound(player, Sound.FIRE_SUCCESSFUL);
   player.getPacketSender().sendMessage("You add a log to the fire.");
   return true;

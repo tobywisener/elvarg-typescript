@@ -7,7 +7,6 @@ const { Misc } = require("../../src/main/typescript/elvarg/util/Misc");
 const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
 const { ItemIds, NpcIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
-const { Pets } = require("../npcs/Pets.plugin");
 
 const FISHING_ACTION_INTERVAL_TICKS = 5;
 const FISHING_ANIMATION_INTERVAL_TICKS = 5;
@@ -260,7 +259,7 @@ class FishingTask extends Task {
         player.getInventory().addItem(new Item(fish.id, 1));
         player.getPacketSender().sendMessage(`You catch a ${fish.name}.`);
         player.getSkillManager().addExperiences(Skill.FISHING, fish.experience);
-        Pets.onSkill(player, Skill.FISHING);
+        pluginApi.emitCustomEvent("fishing:success", { player, skill: Skill.FISHING });
       }
 
       if (session.tool.needed > 0) {
@@ -279,10 +278,12 @@ class FishingTask extends Task {
 
 let TaskManager;
 let World;
+let pluginApi;
 
 module.exports = {
   name: "Fishing",
   register(api) {
+    pluginApi = api;
     TaskManager = api.getTaskManager();
     World = api.getWorld();
     const activeSessions = new Map();

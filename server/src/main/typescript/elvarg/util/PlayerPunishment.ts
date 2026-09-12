@@ -75,9 +75,29 @@ export class PlayerPunishment {
         return this.AccountsBanned.includes(player);
     }
 
+    /** Returns whether the player is banned after the change. */
+    public static toggleBan(player: string): boolean {
+        if (this.banned(player)) {
+            this.unban(player);
+            return false;
+        }
+        this.ban(player);
+        return true;
+    }
+
     public static muted(player: string): boolean {
         player = Misc.formatPlayerName(player.toLowerCase());
         return this.AccountsMuted.includes(player);
+    }
+
+    /** Returns whether the player is muted after the change. */
+    public static toggleMute(player: string): boolean {
+        if (this.muted(player)) {
+            this.unmute(player);
+            return false;
+        }
+        this.mute(player);
+        return true;
     }
 
     public static IPBanned(IP: string): boolean {

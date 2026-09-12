@@ -714,14 +714,6 @@ function onSkill(player, skill) {
   return false;
 }
 
-const Pets = {
-  onSkill,
-  drop,
-  pickup,
-  morph,
-  interact,
-};
-
 let World;
 let RegionManager;
 let ItemOnGroundManager;
@@ -733,6 +725,10 @@ module.exports = {
     RegionManager = api.getRegionManager();
     ItemOnGroundManager = api.getItemOnGroundManager();
     pluginApi = api;
+    for (const skill of new Set(SKILLING_PETS.map((pet) => pet.skill))) {
+      const eventName = `${normalizeSkillName(skill)}:success`;
+      api.onCustomEvent(eventName, ({ player }) => onSkill(player, skill));
+    }
 
     api.onItemDropPolicy((event) => {
       if (!event || !event.player) {
@@ -797,5 +793,4 @@ module.exports = {
       skillingPets: SKILLING_PETS.length,
     });
   },
-  Pets,
 };

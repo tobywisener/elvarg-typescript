@@ -8,7 +8,6 @@ const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
 const { TimerKey } = require("../../src/main/typescript/elvarg/util/timers/TimerKey");
 const { ItemIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
-const { Pets } = require("../npcs/Pets.plugin");
 const { ArceuusSpells } = require("../../src/main/typescript/elvarg/game/content/combat/magic/ArceuusSpells");
 
 const THIEVING_ANIMATION = new Animation(881);
@@ -117,6 +116,7 @@ function pickpocketSucceeded(player, def) {
 
 let TaskManager;
 let CombatFactory;
+let pluginApi;
 
 function handleStealFromStall(event) {
   const stall = STALLS.get(event.definition.getName());
@@ -151,7 +151,7 @@ function handleStealFromStall(event) {
   player
     .getPacketSender()
     .sendMessage(`You steal ${reward.getAmount()} x ${reward.getDefinition().getName()}.`);
-  Pets.onSkill(player, Skill.THIEVING);
+  pluginApi.emitCustomEvent("thieving:success", { player, skill: Skill.THIEVING });
   event.handled = true;
 }
 
@@ -219,7 +219,7 @@ function pickpocket(event) {
           .getPacketSender()
           .sendMessage(`You steal ${loot.getAmount()} x ${loot.getDefinition().getName()}.`);
         player.getSkillManager().addExperiences(Skill.THIEVING, def.xp);
-        Pets.onSkill(player, Skill.THIEVING);
+        pluginApi.emitCustomEvent("thieving:success", { player, skill: Skill.THIEVING });
         return;
       }
 
@@ -248,6 +248,7 @@ function pickpocket(event) {
 module.exports = {
   name: "Thieving",
   register(api) {
+    pluginApi = api;
     TaskManager = api.getTaskManager();
     CombatFactory = api.getCombatFactory();
     for (const name of PICKPOCKET_BY_NAME.keys()) {
