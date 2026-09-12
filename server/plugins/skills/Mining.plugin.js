@@ -7,7 +7,6 @@ const { GameObject } = require("../../src/main/typescript/elvarg/game/entity/imp
 const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
 const { ItemIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
-const { Pets } = require("../npcs/Pets.plugin");
 
 const DEPLETED_ROCK_ID = 2704;
 const MINING_ANIMATION_INTERVAL_TICKS = 4;
@@ -230,7 +229,7 @@ class MiningTask extends Task {
       player.getInventory().adds(state.rock.oreId, 1);
       player.getPacketSender().sendMessage("You get some ores.");
       player.getSkillManager().addExperiences(Skill.MINING, state.rock.xp);
-      Pets.onSkill(player, Skill.MINING);
+      pluginApi.emitCustomEvent("mining:success", { player, skill: Skill.MINING });
       Sounds.sendSound(player, Sound.MINING_ROCK_GONE);
       depleteRock(rockObject, state.rock);
       stopMining(this.activeSessions, player);
@@ -240,6 +239,7 @@ class MiningTask extends Task {
 
 let TaskManager;
 let ObjectManager;
+let pluginApi;
 
 function handleMine(event) {
   const rock = ROCK_BY_NAME.get(event.definition.getName());
@@ -263,6 +263,7 @@ module.exports = {
     return ACTIVE_MINERS.has(player);
   },
   register(api) {
+    pluginApi = api;
     TaskManager = api.getTaskManager();
     ObjectManager = api.getObjectManager();
     activeSessions = new Map();

@@ -7,10 +7,10 @@ const { TeleportHandler } = require("../../src/main/typescript/elvarg/game/model
 const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
 const { ItemIds, ObjectIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
-const { Pets } = require("../npcs/Pets.plugin");
 
 const CRAFT_RUNES_GRAPHIC = new Graphic(186);
 const CRAFT_RUNES_ANIMATION = new Animation(791);
+let pluginApi;
 
 // Rune altars share the same name and action; IDs distinguish their rune types.
 const RUNES_BY_ALTAR_ID = new Map([
@@ -252,7 +252,7 @@ function handleCraftRunes(event) {
     player
       .getSkillManager()
       .addExperiences(Skill.RUNECRAFTING, craftedEssence * runeData.xp);
-    Pets.onSkill(player, Skill.RUNECRAFTING);
+    pluginApi.emitCustomEvent("runecrafting:success", { player, skill: Skill.RUNECRAFTING });
   }
 
   event.handled = true;
@@ -261,6 +261,7 @@ function handleCraftRunes(event) {
 module.exports = {
   name: "Runecrafting",
   register(api) {
+    pluginApi = api;
     api.onObjectInteraction("Altar", { "Craft-rune": handleCraftRunes });
     api.onObjectInteraction("Blood Altar", { Bind: handleCraftRunes });
 

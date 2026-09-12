@@ -8,7 +8,6 @@ const { Item } = require("../../src/main/typescript/elvarg/game/model/Item");
 const { Sound } = require("../../src/main/typescript/elvarg/game/Sound");
 const { Sounds } = require("../../src/main/typescript/elvarg/game/Sounds");
 const { ItemIds, ObjectIds } = require("../../src/main/typescript/elvarg/util/IdEnums");
-const { Pets } = require("../npcs/Pets.plugin");
 
 const TREE_STUMP_OBJECT_ID = ObjectIds.TREE_STUMP_3;
 const WOODCUTTING_ACTION_INTERVAL_TICKS = 4;
@@ -18,6 +17,7 @@ const MULTI_TREE_DEPLETION_THRESHOLD = 2;
 const BIRD_NEST_DROP_CHANCE = 256;
 let woodcuttingTick = 0;
 let activeSessionsRef = null;
+let pluginApi;
 
 const BIRD_NESTS = Object.freeze({
   RED_EGG_NEST: ItemIds.BIRD_NEST,
@@ -660,7 +660,7 @@ function processWoodcuttingTick(activeSessions, currentTick) {
     player.getInventory().adds(state.tree.logId, 1);
     player.getPacketSender().sendMessage("You get some logs.");
     player.getSkillManager().addExperiences(Skill.WOODCUTTING, state.tree.xpReward);
-    Pets.onSkill(player, Skill.WOODCUTTING);
+    pluginApi.emitCustomEvent("woodcutting:success", { player, skill: Skill.WOODCUTTING });
     maybeDropBirdNest(player);
 
     if (shouldDepleteTree(state.tree)) {
@@ -711,6 +711,7 @@ function handleChop(event) {
 module.exports = {
   name: "Woodcutting",
   register(api) {
+    pluginApi = api;
     TaskManager = api.getTaskManager();
     ObjectManager = api.getObjectManager();
     ItemOnGroundManager = api.getItemOnGroundManager();
