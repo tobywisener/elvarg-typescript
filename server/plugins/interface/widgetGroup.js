@@ -10,6 +10,7 @@
 // set in flags or the client will not send the click.
 const FLAG_OP1 = 1 << 1;
 const FLAG_OP2 = 1 << 2;
+const FLAG_OP3 = 1 << 3;
 
 const TYPE_LAYER = 0;
 const TYPE_RECTANGLE = 3;
@@ -71,6 +72,7 @@ function createWidgetGroup(groupId) {
 module.exports = {
   FLAG_OP1,
   FLAG_OP2,
+  FLAG_OP3,
   TYPE_LAYER,
   TYPE_RECTANGLE,
   TYPE_TEXT,

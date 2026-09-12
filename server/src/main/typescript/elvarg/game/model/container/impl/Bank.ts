@@ -143,7 +143,12 @@ export class Bank extends ItemContainer {
 
     public static deposit(player: Player, item: number, slot: number, amount: number, ignore: boolean) {
         if (ignore || Bank.isOpen(player)) {
-            if (player.getInventory().getItems()[slot].getId() !== item) {
+            const inventoryItem = player.getInventory().getItems()[slot];
+            if (!inventoryItem || inventoryItem.getId() !== item) {
+                return;
+            }
+
+            if (getPluginManager().emitCanBankItem(player, inventoryItem) === false) {
                 return;
             }
 
@@ -507,6 +512,9 @@ export class Bank extends ItemContainer {
         }
         let movedAny = false;
         for (let item of from.getValidItems()) {
+            if (getPluginManager().emitCanBankItem(player, item) === false) {
+                continue;
+            }
             from.switchItems(player.getBank(Bank.getTabForItem(player, item.getId())), item.clone(),false, false);
             movedAny = true;
         }

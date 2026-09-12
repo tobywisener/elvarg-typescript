@@ -81,16 +81,30 @@ export class PlayerDeathTask extends Task {
                         let pluginHandledDrop = false;
 
                         for (let item of playerItems) {
-                            const handled = PluginManager.emitPlayerDeathItemDrop({
+                            const dropEligible =
+                                shouldDropItemsOnDeath &&
+                                (item.getDefinition().isTradeable() || Barrows.isBarrowsItem(item.getId())) &&
+                                !this.itemsToKeep.includes(item) &&
+                                this.player.getRights() !== PlayerRights.OWNER &&
+                                this.player.getRights() !== PlayerRights.DEVELOPER;
+                            const deathDropEvent = {
                                 player: this.player,
                                 killer: this.killer ?? null,
                                 item,
                                 location: position,
                                 shouldDropItems: shouldDropItemsOnDeath,
+                                dropEligible,
+                                suppressDefaultDrop: false,
                                 handled: false,
-                            });
+                            };
+                            const handled = PluginManager.emitPlayerDeathItemDrop(deathDropEvent);
                             if (handled) {
                                 pluginHandledDrop = true;
+                                continue;
+                            }
+
+                            if (deathDropEvent.suppressDefaultDrop && deathDropEvent.dropEligible) {
+                                dropped = true;
                                 continue;
                             }
 

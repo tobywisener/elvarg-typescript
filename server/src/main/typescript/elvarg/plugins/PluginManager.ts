@@ -54,6 +54,7 @@ import {
   PluginPlayerFollowEvent,
   PluginPlayerAttackEvent,
   PluginCanBankEvent,
+  PluginCanBankItemEvent,
   PluginCanShopEvent,
   PluginShouldDropItemsOnDeathEvent,
   PluginShouldKeepItemOnDeathEvent,
@@ -141,6 +142,7 @@ export class PluginManager {
   private static playerFollowHooks: PluginHook<PluginPlayerFollowEvent>[] = [];
   private static playerAttackHooks: PluginHook<PluginPlayerAttackEvent>[] = [];
   private static canBankHooks: PluginHook<PluginCanBankEvent>[] = [];
+  private static canBankItemHooks: PluginHook<PluginCanBankItemEvent>[] = [];
   private static canShopHooks: PluginHook<PluginCanShopEvent>[] = [];
   private static shouldDropItemsOnDeathHooks: PluginHook<PluginShouldDropItemsOnDeathEvent>[] = [];
   private static shouldKeepItemOnDeathHooks: PluginHook<PluginShouldKeepItemOnDeathEvent>[] = [];
@@ -790,6 +792,16 @@ export class PluginManager {
       if (event.allow !== null) {
         return event.allow;
       }
+    }
+    return null;
+  }
+
+  public static emitCanBankItem(player: any, item: any): boolean | null {
+    if (PluginManager.canBankItemHooks.length === 0) return null;
+    const event: PluginCanBankItemEvent = { player, item, allow: null };
+    for (const hook of PluginManager.canBankItemHooks) {
+      PluginManager.executeHook(hook, event, "can_bank_item", "can_bank_item");
+      if (event.allow !== null) return event.allow;
     }
     return null;
   }
@@ -2161,6 +2173,16 @@ export class PluginManager {
           },
         });
       },
+      onCanBankItem: (handler) => {
+        if (typeof handler !== "function") return;
+        PluginManager.canBankItemHooks.push({
+          pluginName,
+          handler: (event) => {
+            if (!event?.player || !event.item) return;
+            handler(event);
+          },
+        });
+      },
       onCanShop: (handler) => {
         if (typeof handler !== "function") {
           return;
@@ -2907,6 +2929,7 @@ export class PluginManager {
       emitCanEat: (player, itemId) => PluginManager.emitCanEat(player, itemId),
       emitCanDrink: (player, itemId) => PluginManager.emitCanDrink(player, itemId),
       emitCanBank: (player) => PluginManager.emitCanBank(player),
+      emitCanBankItem: (player, item) => PluginManager.emitCanBankItem(player, item),
       emitShouldKeepItemOnDeath: (player, item) =>
         PluginManager.emitShouldKeepItemOnDeath(player, item),
       emitFiremakingBlocked: (event) => PluginManager.emitFiremakingBlocked(event),

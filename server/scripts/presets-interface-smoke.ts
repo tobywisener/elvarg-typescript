@@ -5,6 +5,7 @@
 import { strict as assert } from "assert";
 import path = require("path");
 import { CachePipeline } from "../src/main/typescript/elvarg/game/cache/CachePipeline";
+import { Location } from "../src/main/typescript/elvarg/game/model/Location";
 
 // PrayerHandler <-> QuickPrayers is a require cycle that only resolves when the server
 // boots in its usual order; the preset renderer never touches prayers, so stub it out.
@@ -35,10 +36,11 @@ const {
   uid,
 } = require("../plugins/modes/pvp/presetsWidget");
 const Presets = require("../plugins/modes/pvp/Presets");
+const PvpMode = require("../plugins/modes/PvpMode.plugin");
 
 type Sent = { call: string; args: any[] };
 
-function stubPlayer(sent: Sent[]) {
+function stubPlayer(sent: Sent[], location: any = null) {
   const record = (call: string) => (...args: any[]) => {
     sent.push({ call, args });
     return sender;
@@ -76,7 +78,7 @@ function stubPlayer(sent: Sent[]) {
     setAttribute: (key: string, value: unknown) => attributes.set(key, value),
     isPlayerBot: () => false,
     busy: () => false,
-    getLocation: () => null,
+    getLocation: () => location,
   };
 }
 
@@ -167,7 +169,7 @@ async function main() {
         },
         { get: (target, property) => (target as any)[property] ?? (() => undefined) }
     );
-    Presets.register(api);
+    PvpMode.register(api);
 
     assert.equal(registeredGroupId, GROUP_ID, "the interface must be registered as a resource");
     assert.ok(registeredWidgets > 100, "the widget group travels with it");
@@ -203,6 +205,10 @@ async function main() {
     assert.equal(mount!.args[1], GROUP_ID);
     assert.equal(player.getInterfaceId(), GROUP_ID, "the open interface is tracked");
 
+    const feroxPlayer = stubPlayer([], new Location(3140, 3630, 0));
+    openPresets!({ player: feroxPlayer });
+    assert.equal(feroxPlayer.getInterfaceId(), GROUP_ID, "::presets must open inside the Ferox safe zone");
+
     const stringAt = (component: number) =>
         [...sent].reverse().find(
             (entry) => entry.call === "sendString" && entry.args[1] === uid(component)
@@ -213,7 +219,11 @@ async function main() {
         /Empty slot/,
         "the player's own slots follow, in the same list",
     );
-    assert.equal(stringAt(COMPONENT.SELECTED_NAME), "No preset selected");
+    assert.equal(
+        stringAt(COMPONENT.SELECTED_NAME),
+        Presets.getGlobalPresetPool()[0].getName(),
+        "::presets opens with its default preset selected",
+    );
     assert.match(String(stringAt(COMPONENT.LOAD_BUTTON + 50)), /Load preset/);
     assert.match(String(stringAt(COMPONENT.DEATH_BUTTON + 50)), /On death/);
 

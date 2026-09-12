@@ -2,6 +2,7 @@ const { Wilderness } = require("../../src/main/typescript/elvarg/game/content/wi
 const { Obelisks } = require("../../src/main/typescript/elvarg/game/content/Obelisks");
 const { PlayerRights } = require("../../src/main/typescript/elvarg/game/model/rights/PlayerRights");
 const { Location } = require("../../src/main/typescript/elvarg/game/model/Location");
+const { isSafeLocation: isFeroxSafeLocation } = require("../items/LootKeys.plugin");
 
 // ---------------------------------------------------------------------------
 // pvp_icons overlay (OSRS interface 90)
@@ -65,6 +66,10 @@ function combatLevelOf(player) {
 }
 
 function wildernessLevelOf(player) {
+  const location = player?.getLocation?.();
+  if (isFeroxSafeLocation(location)) {
+    return 0;
+  }
   const stored = player?.getWildernessLevel?.() | 0;
   if (stored > 0) {
     return stored;
@@ -72,7 +77,6 @@ function wildernessLevelOf(player) {
   // World only emits the player-process hook for real players, so a bot's stored level is
   // always 0. Deriving it from the tile keeps the rule honest for anyone core forgets to
   // update - otherwise the pair looks unlevelled and the level range is never applied.
-  const location = player?.getLocation?.();
   if (!location) {
     return 0;
   }
@@ -87,6 +91,10 @@ function wildernessLevelOf(player) {
     : 0;
   derivedLevels.set(player, { x, y, level });
   return level;
+}
+
+function isWildernessLocation(location) {
+  return Wilderness.isInLocation(location) && !isFeroxSafeLocation(location);
 }
 
 /**
@@ -177,8 +185,8 @@ function isInWilderness(state, player) {
     return cached.inWilderness;
   }
   const inWilderness = tile
-    ? Wilderness.isInLocation(tile.location)
-    : Wilderness.isIn(player);
+    ? isWildernessLocation(tile.location)
+    : Wilderness.isIn(player) && !isFeroxSafeLocation(player?.getLocation?.());
   state.tiles.set(player, { ...cached, ...(tile ?? {}), inWilderness });
   return inWilderness;
 }
@@ -190,6 +198,7 @@ function isInWilderness(state, player) {
 const lastIconsVisible = new WeakMap();
 const lastWildernessState = new WeakMap();
 const lastPvpLayoutState = new WeakMap();
+const lastSafeBadgeVisible = new WeakMap();
 
 function mountPvpIcons(player) {
   if (!player || player?.isPlayerBot?.() === true) {
@@ -200,15 +209,16 @@ function mountPvpIcons(player) {
   // so a normal world uses combat level +/- Wilderness level.
   sender.sendConfig(VARP_MAP_FLAGS_CACHED, MAP_FLAGS_REGULAR_WILDERNESS);
   sender.sendSubInterface(PVP_ICONS_TARGET_UID, PVP_ICONS_INTERFACE, 1);
-  // Cache script 386 leaves the "safe area" badge opaque everywhere outside the Clan Wars
-  // arena, so keep it hidden until safe zones are actually configured.
+  // The cache leaves this badge visible by default. It is only valid inside Ferox.
   sender.sendInterfaceDisplayState(PVPW_SAFE_UID, true);
   // A fresh mount resets the group's widgets to their cache defaults.
   lastIconsVisible.delete(player);
-  syncPvpIcons(player);
+  lastSafeBadgeVisible.delete(player);
+  syncPvpIcons(player, isFeroxSafeLocation(player.getLocation?.()));
+  syncSafeBadge(player, isFeroxSafeLocation(player.getLocation?.()));
 
   const tile = readPlayerTile(player);
-  if (tile && Wilderness.isInLocation(tile.location)) {
+  if (tile && isWildernessLocation(tile.location)) {
     syncPvpLayout(player, tile, true);
   }
 }
@@ -217,16 +227,24 @@ function mountPvpIcons(player) {
 // so the server keeps the whole block hidden unless the player has a wilderness level.
 // Driven off the level itself rather than an entry/exit edge: every tick reconverges, so a
 // teleport, a login or a missed transition can't strand the block on screen.
-function syncPvpIcons(player) {
+function syncPvpIcons(player, inSafeZone = isFeroxSafeLocation(player?.getLocation?.())) {
   if (!player || player?.isPlayerBot?.() === true) {
     return;
   }
-  const visible = (player.getWildernessLevel?.() | 0) > 0;
+  const visible = inSafeZone || (player.getWildernessLevel?.() | 0) > 0;
   if (lastIconsVisible.get(player) === visible) {
     return;
   }
   lastIconsVisible.set(player, visible);
   player.getPacketSender().sendInterfaceDisplayState(PVP_ICONS_UID, !visible);
+}
+
+function syncSafeBadge(player, inSafeZone) {
+  if (!player || player?.isPlayerBot?.() === true || lastSafeBadgeVisible.get(player) === inSafeZone) {
+    return;
+  }
+  lastSafeBadgeVisible.set(player, inSafeZone);
+  player.getPacketSender().sendInterfaceDisplayState(PVPW_SAFE_UID, !inSafeZone);
 }
 
 function syncWildernessState(player, inWilderness) {
@@ -259,6 +277,10 @@ function refreshWildernessUi(player, tile, inWilderness) {
   if (!player || player?.isPlayerBot?.() === true || !tile) {
     return;
   }
+
+  const inSafeZone = isFeroxSafeLocation(tile.location);
+  syncPvpIcons(player, inSafeZone);
+  syncSafeBadge(player, inSafeZone);
 
   if (inWilderness) {
     syncWildernessState(player, true);
@@ -297,7 +319,6 @@ function refreshWildernessUi(player, tile, inWilderness) {
 // combat rules derive a level from the tile instead of trusting the stored one.
 function onPlayerProcess(state, player) {
   retryPendingMount(state, player);
-  syncPvpIcons(player);
 
   const tile = readPlayerTile(player);
   if (!tile) {
@@ -305,13 +326,16 @@ function onPlayerProcess(state, player) {
   }
   const previous = state.tiles.get(player);
   if (Location.isSameTile(previous, tile) && typeof previous.inWilderness === "boolean") {
+    const inSafeZone = isFeroxSafeLocation(tile.location);
+    syncPvpIcons(player, inSafeZone);
+    syncSafeBadge(player, inSafeZone);
     if (previous.inWilderness) {
       syncPvpLayout(player, tile);
     }
     return;
   }
 
-  const inWilderness = Wilderness.isInLocation(tile.location);
+  const inWilderness = isWildernessLocation(tile.location);
   const wasInWilderness = previous?.inWilderness === true;
 
   if (inWilderness) {
@@ -380,7 +404,7 @@ function onPlayerLogin(state, player) {
   if (!tile) {
     return;
   }
-  const inWilderness = Wilderness.isInLocation(tile.location);
+  const inWilderness = isWildernessLocation(tile.location);
   state.tiles.set(player, { x: tile.x, y: tile.y, z: tile.z, inWilderness });
   refreshWildernessUi(player, tile, inWilderness);
   mountPvpIcons(player);
@@ -392,6 +416,7 @@ function onPlayerDisconnect(state, player) {
   lastIconsVisible.delete(player);
   lastWildernessState.delete(player);
   lastPvpLayoutState.delete(player);
+  lastSafeBadgeVisible.delete(player);
 }
 
 function onCanAttack(state, event) {
@@ -461,7 +486,7 @@ function onNpcAggressionTolerance(state, event) {
 }
 
 function onObeliskClick(event) {
-  if (!Wilderness.isIn(event.player)) {
+  if (!isWildernessLocation(event.player?.getLocation?.())) {
     return;
   }
   if (Obelisks.activate(event.objectId)) {

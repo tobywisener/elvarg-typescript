@@ -7,6 +7,7 @@ const { Autocasting } = require("../../../src/main/typescript/elvarg/game/conten
 const { Presetable } = require("../../../src/main/typescript/elvarg/game/content/presets/Presetable");
 const { PredefinedPresets } = require("../../../src/main/typescript/elvarg/game/content/presets/PredefinedPresets");
 const { Wilderness } = require("../../../src/main/typescript/elvarg/game/content/wilderness/Wilderness");
+const { isSafeLocation: isFeroxSafeLocation } = require("../../items/LootKeys.plugin");
 const { Item } = require("../../../src/main/typescript/elvarg/game/model/Item");
 const { Skill } = require("../../../src/main/typescript/elvarg/game/model/Skill");
 const { Flag } = require("../../../src/main/typescript/elvarg/game/model/Flag");
@@ -242,7 +243,7 @@ function getSpellbookDisplayName(spellbook) {
 }
 
 function isPresetBlockedInWilderness(player) {
-  return Wilderness.isIn(player) && !isPlayerBot(player);
+  return Wilderness.isIn(player) && !isFeroxSafeLocation(player?.getLocation?.()) && !isPlayerBot(player);
 }
 
 function customPresets(player) {

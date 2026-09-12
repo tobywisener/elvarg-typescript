@@ -779,6 +779,9 @@ function handlePotionDrink(player, itemId, slot) {
 
 module.exports = {
   name: "Potions",
+  isPotionItem(itemId) {
+    return POTION_BY_ITEM_ID.has(itemId);
+  },
   register(api) {
     pluginApi = api;
     initDragonfireProtectionCoreAccess(api);

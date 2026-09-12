@@ -3,6 +3,8 @@
 // level-range rule decides who may attack whom.
 // Usage: TS_NODE_COMPILER_OPTIONS='{"target":"es2020"}' yarn ts-node ./scripts/wilderness-plugin-smoke.ts
 import { strict as assert } from "assert";
+import path = require("path");
+import { CachePipeline } from "../src/main/typescript/elvarg/game/cache/CachePipeline";
 import { Location } from "../src/main/typescript/elvarg/game/model/Location";
 import { PacketSender } from "../src/main/typescript/elvarg/net/packet/PacketSender";
 
@@ -11,6 +13,7 @@ const { isVisibleRealPlayer } = require("../plugins/bots/behaviours/pvp/PvpTarge
 
 const PVP_ICONS_TARGET_UID = (161 << 16) | 3;
 const PVP_ICONS_UID = (90 << 16) | 43;
+const PVPW_SAFE_UID = (90 << 16) | 47;
 const PVP_LEVEL_UID = (90 << 16) | 50;
 const VARP_MAP_FLAGS_CACHED = 3717;
 const VARBIT_IN_WILDERNESS = 5963;
@@ -20,14 +23,15 @@ const IN_WILDERNESS = new Location(3100, 3600, 0);
 const AT_THE_DITCH = new Location(3100, 3525, 0); // level 1 Wilderness
 const MULTI_AT_THE_DITCH = new Location(3200, 3525, 0);
 const OUTSIDE = new Location(3100, 3500, 0);
+const FEROX_ENCLAVE = new Location(3140, 3630, 0);
 
-let process: ((event: any) => void) | undefined;
+let processPlayer: ((event: any) => void) | undefined;
 let login: ((event: any) => void) | undefined;
 let canAttack: ((event: any) => void) | undefined;
 
 function register() {
     const api = new Proxy<any>({
-        onPlayerProcess: (handler: any) => { process = handler; },
+        onPlayerProcess: (handler: any) => { processPlayer = handler; },
         onPlayerLogin: (handler: any) => { login = handler; },
         onCanAttack: (handler: any) => { canAttack = handler; },
     }, {
@@ -35,7 +39,7 @@ function register() {
     });
 
     Wilderness.register(api);
-    assert.ok(process && login && canAttack, "plugin must register its hooks");
+    assert.ok(processPlayer && login && canAttack, "plugin must register its hooks");
 }
 
 function overlayFollowsTheDitch() {
@@ -85,7 +89,7 @@ function overlayFollowsTheDitch() {
 
     // The login mount is retried a few ticks later; keep ticking until it lands.
     sent.length = 0;
-    for (let i = 0; i < 6; i++) process!({ player });
+    for (let i = 0; i < 6; i++) processPlayer!({ player });
     assert.equal(mounts(), 1, "the queued re-mount must fire exactly once");
     assert.equal(hidden(), true, "the re-mount must keep the block hidden outside the wilderness");
 
@@ -93,8 +97,8 @@ function overlayFollowsTheDitch() {
     // tick that sets the level is followed by the tick that sends the state.
     sent.length = 0;
     location = AT_THE_DITCH;
-    process!({ player });
-    process!({ player });
+    processPlayer!({ player });
+    processPlayer!({ player });
     assert.equal(hidden(), false, "entering the wilderness must show the icon block");
     assert.equal(wildernessLevel, 1, "the ditch must be level 1 Wilderness");
     assert.ok(sent.some((s) => s.call === "sendClientScript" && s.args[0] === 386),
@@ -106,17 +110,29 @@ function overlayFollowsTheDitch() {
         && s.args[0] === VARBIT_IN_WILDERNESS && s.args[1] === 1));
 
     location = MULTI_AT_THE_DITCH;
-    process!({ player });
+    processPlayer!({ player });
     assert.equal(multiIcon, 1, "entering a multi-combat tile must enable the icon");
 
     // Step back out.
     sent.length = 0;
     location = OUTSIDE;
-    process!({ player });
-    process!({ player });
+    processPlayer!({ player });
+    processPlayer!({ player });
     assert.equal(hidden(), true, "leaving the wilderness must hide the icon block");
     assert.equal(wildernessLevel, 0, "leaving the wilderness must clear the wilderness level");
     assert.equal(multiIcon, 0, "leaving the wilderness must clear the multi-combat icon");
+
+    // OpenRune models Ferox as an area excluded from its normal wilderness area. The
+    // same tile must clear the wilderness state here while retaining the OSRS safe badge.
+    sent.length = 0;
+    location = FEROX_ENCLAVE;
+    processPlayer!({ player });
+    processPlayer!({ player });
+    assert.equal(hidden(), false, "Ferox must retain the PvP HUD for its safe-zone label");
+    const safeBadge = sent.filter((s) => s.call === "sendInterfaceDisplayState"
+        && s.args[0] === PVPW_SAFE_UID).at(-1);
+    assert.equal(safeBadge?.args[1], false, "Ferox must show the safe-zone label");
+    assert.equal(wildernessLevel, 0, "Ferox must not retain a wilderness level");
 
     console.log("  overlay: mounted once, hidden outside the wilderness");
 }
@@ -227,9 +243,17 @@ function botsSkipUnattackableTargets() {
     console.log("  bots: out-of-range candidates filtered before pathing");
 }
 
-register();
-overlayFollowsTheDitch();
-multiIconUsesTheWebclientVarbit();
-levelRangeIsEnforced();
-botsSkipUnattackableTargets();
-console.log("wilderness plugin ok");
+async function main() {
+    await CachePipeline.initialize(path.resolve(__dirname, ".."));
+    register();
+    overlayFollowsTheDitch();
+    multiIconUsesTheWebclientVarbit();
+    levelRangeIsEnforced();
+    botsSkipUnattackableTargets();
+    console.log("wilderness plugin ok");
+}
+
+main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+});

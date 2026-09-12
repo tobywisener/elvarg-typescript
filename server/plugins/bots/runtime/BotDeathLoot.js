@@ -9,6 +9,7 @@ const {
 } = require("./BotRecruitConstants");
 const { PvpProfileId } = require("../behaviours/pvp/PvpProfileRegistry");
 const { buildPvpEquipmentDropPlan } = require("./BotPvpDeathDropFormula");
+const LootKeys = require("../../items/LootKeys.plugin");
 
 let World = null;
 let ItemOnGroundManager = null;
@@ -147,14 +148,21 @@ function handleBotDeathItemDrop(event, runtime) {
     return;
   }
 
-  event.handled = true;
-
   const plan = getOrCreateDeathLootPlan(
     victim,
     event?.killer,
     runtime
   );
-  if (!plan?.killer || !plan.drops?.has?.(event?.item)) {
+  const selectedDrop = plan?.killer && plan.drops?.has?.(event?.item);
+
+  // Let the Loot Keys plugin collect exactly the drops this bot's PvP plan selected.
+  if (selectedDrop && LootKeys.isEligibleKill(event.killer, victim)) {
+    event.dropEligible = true;
+    return;
+  }
+
+  event.handled = true;
+  if (!selectedDrop) {
     return;
   }
   victim.setAttribute?.(ATTR_CUSTOM_DEATH_LOOT_DROPPED, true);

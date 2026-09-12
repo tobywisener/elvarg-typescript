@@ -204,6 +204,13 @@ export interface PluginCanBankEvent {
   allow: boolean | null;
 }
 
+/** Called immediately before one item is deposited into a bank. */
+export interface PluginCanBankItemEvent {
+  player: any;
+  item: any;
+  allow: boolean | null;
+}
+
 export interface PluginCanShopEvent {
   player: any;
   shopId: number | null;
@@ -228,6 +235,10 @@ export interface PluginPlayerDeathItemDropEvent {
   item: any;
   location: any;
   shouldDropItems: boolean;
+  /** Whether core would create a normal floor item for this item. */
+  dropEligible: boolean;
+  /** Prevent the normal floor-item spawn without stopping later death-drop hooks. */
+  suppressDefaultDrop: boolean;
   handled: boolean;
 }
 
@@ -548,6 +559,7 @@ export interface PluginApi {
   onPlayerFollow(handler: (event: PluginPlayerFollowEvent) => void): void;
   onPlayerAttack(handler: (event: PluginPlayerAttackEvent) => void): void;
   onCanBank(handler: (event: PluginCanBankEvent) => void): void;
+  onCanBankItem(handler: (event: PluginCanBankItemEvent) => void): void;
   onCanShop(handler: (event: PluginCanShopEvent) => void): void;
   onShouldDropItemsOnDeath(
     handler: (event: PluginShouldDropItemsOnDeathEvent) => void
@@ -733,6 +745,7 @@ export interface PluginApi {
   emitCanEat(player: any, itemId: number): boolean | null;
   emitCanDrink(player: any, itemId: number): boolean | null;
   emitCanBank(player: any): boolean | null;
+  emitCanBankItem(player: any, item: any): boolean | null;
   emitShouldKeepItemOnDeath(player: any, item: any): boolean | null;
   emitFiremakingBlocked(event: PluginFiremakingBlockedEvent): boolean;
   emitObjectInteraction(event: PluginObjectInteractionEvent): boolean;

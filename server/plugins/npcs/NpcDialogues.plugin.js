@@ -15,6 +15,9 @@ const { ActionDialogue } = require("../../src/main/typescript/elvarg/game/model/
 const { ShopDefinition } = require("../../src/main/typescript/elvarg/game/definition/ShopDefinition");
 const { ShopManager } = require("../../src/main/typescript/elvarg/game/model/container/shop/ShopManager");
 
+// These NPCs have executable plugin conversations, not an imported prose transcript.
+const SPECIAL_NPC_DIALOGUES = new Set(["Skully"]);
+
 function startDialogue(api, event, steps) {
   const { player } = event;
   const manager = player.getDialogueManager();
@@ -112,6 +115,7 @@ module.exports = {
     api.onAnyNpcInteraction({
       "Talk-to": (event) => {
         const name = event.definition.getName();
+        if (SPECIAL_NPC_DIALOGUES.has(name)) return false;
         const npc = Object.hasOwn(data, name) ? data[name] : undefined;
         const variant = npc?.variants?.[npc.default];
         startDialogue(api, event, variant?.length ? variant : [

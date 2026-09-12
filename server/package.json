@@ -77,6 +77,8 @@
     "test:max-hits-interface": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/max-hits-interface-smoke.ts",
     "test:teleports-interface": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/teleports-interface-smoke.ts",
     "test:ring-of-wealth": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/ring-of-wealth-plugin-smoke.ts",
+    "test:loot-keys": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/loot-keys-plugin-smoke.ts",
+    "test:ferox-enclave": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/ferox-enclave-plugin-smoke.ts",
     "test:pegasian-boots": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/pegasian-boots-plugin-smoke.ts",
     "test:barrows": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/barrows-plugin-smoke.ts",
     "test:rejuvenation-pool": "TS_NODE_COMPILER_OPTIONS='{\"target\":\"es2020\"}' ts-node ./scripts/rejuvenation-pool-smoke.ts",

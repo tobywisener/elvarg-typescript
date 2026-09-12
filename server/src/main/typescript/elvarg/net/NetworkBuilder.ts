@@ -31,6 +31,7 @@ import {
   encodeLoginResponse,
   encodeLogoutResponse,
   encodeWelcome,
+  MAIN_INVENTORY_GROUP_ID,
   PlayerAppearance,
 } from "./protocol/ClientProtocol";
 import {
@@ -487,7 +488,7 @@ class ClientConnection {
               CacheDefinitions.getSpellName(actionPacket.widgetId, actionPacket.itemId ?? -1),
             )) {
               // Arceuus self-cast spells are identified by their cache spell name.
-            } else if (actionPacket.itemId != null && actionPacket.slot != null &&
+            } else if (actionPacket.groupId === MAIN_INVENTORY_GROUP_ID && actionPacket.itemId != null && actionPacket.slot != null &&
                 this.player.getInventory().getItems()[actionPacket.slot]?.getId() === actionPacket.itemId) {
               if (actionPacket.subOpId && PluginManager.emitItemAction({
                 player: this.player,
