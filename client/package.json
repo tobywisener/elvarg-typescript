@@ -53,7 +53,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "export-textures": "tsx scripts/cache/export-textures.ts",
     "export-height-map": "tsx scripts/cache/export-height-map.ts",
-    "export-items": "tsx scripts/cache/export-items.ts"
+    "export-items": "tsx scripts/cache/export-items.ts",
+    "deploy": "node scripts/deploy.mjs"
   },
   "eslintConfig": {
     "extends": [
@@ -129,6 +130,7 @@
     "@types/pako": "^2.0.4",
     "@types/react-modal": "^3.16.3",
     "@types/webfontloader": "^1.6.38",
+    "basic-ftp": "^6.2.1",
     "json-minimizer-webpack-plugin": "^5.0.1",
     "path": "^0.12.7",
     "threads-plugin": "^1.4.0",
