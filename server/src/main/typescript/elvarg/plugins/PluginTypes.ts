@@ -623,6 +623,8 @@ export interface PluginApi {
   onItemOnGroundItem(handler: (event: PluginItemOnGroundItemEvent) => void, filter?: PluginItemUseFilter): void;
   onSpellOnObject(handler: (event: PluginSpellOnObjectEvent) => void): void;
   onItemAction(handler: (event: PluginItemActionEvent) => void): void;
+  /** Exact item name and inventory option matching. Return false to fall through. */
+  onItemAction(itemName: string, actions: Record<string, (event: PluginItemActionEvent) => void | boolean>): void;
   onItemDropPolicy(handler: (event: PluginItemDropEvent) => void): void;
   onItemFirstAction(
     handler: (event: PluginItemActionEvent) => void | boolean

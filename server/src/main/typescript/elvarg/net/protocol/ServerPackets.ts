@@ -76,6 +76,7 @@ export const enum ServerPacketId {
     WIDGET_SET_ANIMATION = 114,
     WIDGET_SET_PLAYER_HEAD = 115,
     WIDGET_SET_QUEST_LIST = 116,
+    WIDGET_SET_MODEL = 117,
 
     // ========================================
     // CHAT/MESSAGES (120-129)
@@ -194,6 +195,7 @@ export const SERVER_PACKET_LENGTHS: Record<ServerPacketId, number> = {
     [ServerPacketId.WIDGET_OPEN_SUB]: -2,
     [ServerPacketId.WIDGET_CLOSE_SUB]: 4, // targetUid(4)
     [ServerPacketId.WIDGET_SET_TEXT]: -2,
+    [ServerPacketId.WIDGET_SET_MODEL]: 8, // uid(4) + raw modelId(4)
     [ServerPacketId.WIDGET_SET_HIDDEN]: 5, // uid(4) + hidden(1)
     [ServerPacketId.WIDGET_SET_ITEM]: 10, // uid(4) + itemId(2) + quantity(4)
     [ServerPacketId.WIDGET_SET_NPC_HEAD]: 6, // uid(4) + npcId(2)

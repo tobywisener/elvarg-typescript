@@ -1,3 +1,4 @@
+import { CacheDefinitions } from "../game/cache/CacheDefinitions";
 import { ItemDefinition } from "../game/definition/ItemDefinition";
 import { PlayerSave } from "../game/entity/impl/player/persistence/PlayerSave";
 import { ContentApi } from "../net/http/ContentApi";
@@ -2533,10 +2534,14 @@ export class PluginManager {
           },
         });
       },
-      onItemAction: (handler) => {
-        if (typeof handler !== "function") {
+      onItemAction: (
+        handler: string | ((event: PluginItemActionEvent) => void),
+        actions?: Record<string, (event: PluginItemActionEvent) => void | boolean>
+      ) => {
+        if (typeof handler !== "function" && (typeof handler !== "string" || !actions)) {
           return;
         }
+        const namedActions = new Map(Object.entries(actions ?? {}).filter(([, action]) => typeof action === "function"));
         PluginManager.itemActionHooks.push({
           pluginName,
           handler: (event) => {
@@ -2551,7 +2556,15 @@ export class PluginManager {
             ) {
               return;
             }
-            handler(event);
+            if (typeof handler === "function") {
+              handler(event);
+              return;
+            }
+            const definition = CacheDefinitions.getItem(event.itemId);
+            if (definition?.name !== handler || event.clickType < 1 || event.clickType > 5) return;
+            const option = definition.inventoryActions[event.clickType - 1];
+            const action = namedActions.get(option);
+            if (action && action(event) !== false) event.handled = true;
           },
         });
       },

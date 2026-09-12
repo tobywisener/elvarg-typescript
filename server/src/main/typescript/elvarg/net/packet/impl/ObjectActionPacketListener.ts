@@ -1,3 +1,4 @@
+import { ObjectDefinition } from "../../../game/definition/ObjectDefinition";
 import { MapObjects } from "../../../game/entity/impl/object/MapObjects";
 import { Player } from "../../../game/entity/impl/player/Player";
 import { Location } from "../../../game/model/Location";
@@ -25,7 +26,8 @@ export class ObjectActionPacketListener {
     if (!object) {
       return;
     }
-    const definition = object.getDefinition();
+    const definition = ObjectDefinition.forPlayer(object.getId(), player);
+    if (!definition) return;
     if (clickType < 1 || clickType > 5) {
       const normalized = action?.trim().toLowerCase();
       clickType = normalized

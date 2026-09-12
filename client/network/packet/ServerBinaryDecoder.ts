@@ -865,6 +865,12 @@ export function decodeServerPacket(data: Uint8Array | ArrayBuffer): DecodedServe
                 },
             };
 
+        case ServerPacketId.WIDGET_SET_MODEL:
+            return {
+                type: "widget",
+                payload: { action: "set_model", uid: reader.readInt(), modelId: reader.readInt() },
+            };
+
         case ServerPacketId.WIDGET_SET_ITEM:
             return {
                 type: "widget",

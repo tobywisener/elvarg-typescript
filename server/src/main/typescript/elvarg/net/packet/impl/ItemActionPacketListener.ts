@@ -1,3 +1,4 @@
+import { CacheDefinitions } from "../../../game/cache/CacheDefinitions";
 import { PluginManager } from "../../../plugins/PluginManager";
 
 const getInventoryCtor = () =>
@@ -11,6 +12,16 @@ const getEquipPacketListener = () =>
     .EquipPacketListener as typeof import("./EquipPacketListener").EquipPacketListener;
 
 export class ItemActionPacketListener {
+  /** Cache script 7779 uses enum 4303: inventory actions 1..5 occupy widget ops 2,3,4,6,7. */
+  public static resolveInventoryWidgetAction(itemId: number, widgetOp: number): { optionIndex: number; option: string } | null {
+    const definition = CacheDefinitions.getItem(itemId);
+    if (widgetOp === 10) return { optionIndex: 10, option: "Examine" };
+    // Op 1 is the cache's shift-click/tap-to-drop override; op 5 is item targeting (Use).
+    const index = widgetOp === 1 ? definition.getShiftClickIndex() : [2, 3, 4, 6, 7].indexOf(widgetOp);
+    const option = definition.inventoryActions[index];
+    return option ? { optionIndex: index + 1, option } : null;
+  }
+
   public static handleAction(player: any, interfaceId: number, itemId: number, slot: number, clickType: number, option?: string): boolean {
     if (clickType === 1) return this.handleFirstAction(player, interfaceId, itemId, slot, option);
     const item = this.itemContainer(player, interfaceId)?.getItems?.()[slot];

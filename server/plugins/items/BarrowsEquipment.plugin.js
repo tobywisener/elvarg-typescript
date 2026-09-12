@@ -1,3 +1,4 @@
+const { PrayerHandler } = require("../../src/main/typescript/elvarg/game/content/PrayerHandler");
 const { Barrows } = require("../../src/main/typescript/elvarg/game/content/combat/Barrows");
 const { Equipment } = require("../../src/main/typescript/elvarg/game/model/container/impl/Equipment");
 const { Flag } = require("../../src/main/typescript/elvarg/game/model/Flag");
@@ -145,8 +146,8 @@ function toragDefence(entity, effectiveDefence) {
   return Math.floor(effectiveDefence * (100 + missingHitpoints) / 100);
 }
 
-function chance() {
-  return Math.floor(Math.random() * 4) === 0;
+function chance(probability = 0.25) {
+  return Math.random() < probability;
 }
 
 function applyAhrimDamage(hit, target) {
@@ -176,8 +177,7 @@ function repairEquipment(event) {
 }
 
 module.exports = {
-  name: "Barrows",
-  _test: { durability, setDurability, repairCost },
+  name: "BarrowsEquipment",
   register(api) {
     pluginApi = api;
     BonusManager = api.getBonusManager();
@@ -194,8 +194,14 @@ module.exports = {
     api.registerRangedDefenseModifier(toragDefence);
     api.registerMagicDefenseModifier(toragDefence);
 
+    api.registerMeleeHitModifier((attacker, maxHit) => {
+      if (!attacker.isNpc() || !CombatFactory.fullVeracs(attacker)) return maxHit;
+      const target = attacker.getCombat().getTarget();
+      return target && PrayerHandler.isActivated(target, PrayerHandler.PROTECT_FROM_MELEE)
+        ? Math.floor(maxHit * 2 / 3) : maxHit;
+    });
     api.onCombatHitRoll((event) => {
-      if (event.combatType === CombatType.MELEE && event.attacker.isPlayer?.() && Barrows.hasFullSet(event.attacker.getAsPlayer(), "veracs") && chance()) {
+      if (event.combatType === CombatType.MELEE && CombatFactory.fullVeracs(event.attacker) && chance()) {
         event.forceAccurate = true;
         event.bypassProtectionPrayer = true;
       }
@@ -221,19 +227,21 @@ module.exports = {
       if (target.isPlayer?.() && damage > 0 && Barrows.hasDamnedSet(target.getAsPlayer(), "dharoks") && chance()) {
         attacker.getCombat().getHitQueue().addPendingDamage([new HitDamage(Math.floor(damage * 0.15), HitMask.RED)]);
       }
-      if (!attacker.isPlayer?.() || !chance()) return;
-      const player = attacker.getAsPlayer();
-      if (Barrows.hasFullSet(player, "guthans") && damage > 0) {
+      if (!chance(attacker.isNpc() && CombatFactory.fullAhrims(attacker) ? 0.2 : 0.25)) return;
+      const player = attacker.isPlayer() ? attacker.getAsPlayer() : null;
+      if (CombatFactory.fullGuthans(attacker) && damage > 0) {
         target.performGraphic(new Graphic(398));
-        const maximum = player.getSkillManager().getMaxLevel(Skill.HITPOINTS) + (Barrows.hasDamnedSet(player, "guthans") ? 10 : 0);
-        player.setHitpoints(Math.min(maximum, player.getHitpoints() + damage));
-      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.MAGIC && Barrows.hasFullSet(player, "ahrims")) {
+        const maximum = player
+          ? player.getSkillManager().getMaxLevel(Skill.HITPOINTS) + (Barrows.hasDamnedSet(player, "guthans") ? 10 : 0)
+          : attacker.getAsNpc().getDefinition().getHitpoints();
+        attacker.setHitpoints(Math.min(maximum, attacker.getHitpoints() + damage));
+      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.MAGIC && CombatFactory.fullAhrims(attacker)) {
         const skills = target.getAsPlayer().getSkillManager();
         skills.setCurrentLevels(Skill.STRENGTH, Math.max(0, skills.getCurrentLevel(Skill.STRENGTH) - 5));
-      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.RANGED && Barrows.hasFullSet(player, "karils")) {
+      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.RANGED && CombatFactory.fullKarils(attacker)) {
         const skills = target.getAsPlayer().getSkillManager();
         skills.setCurrentLevels(Skill.AGILITY, Math.floor(skills.getCurrentLevel(Skill.AGILITY) * 0.8));
-      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.MELEE && Barrows.hasFullSet(player, "torags")) {
+      } else if (target.isPlayer?.() && hit.getCombatType() === CombatType.MELEE && CombatFactory.fullTorags(attacker)) {
         const playerTarget = target.getAsPlayer();
         playerTarget.setRunEnergy(Math.floor(playerTarget.getRunEnergy() * 0.8));
       }

@@ -52,6 +52,18 @@ export class ObjectDefinition extends ObjectIdentifiers {
         return this.interactive || this.clipType === 1;
     }
 
+    /** Resolve the same per-player loc variant that the client displays. */
+    static forPlayer(id: number, player: { getPacketSender(): { getVarbit(id: number): number; getVarp(id: number): number } }): ObjectDefinition | null {
+        const cached = CacheDefinitions.getObject(id);
+        if (!cached.transforms) return this.forId(id);
+        const vars = player.getPacketSender();
+        const index = cached.transformVarbit !== -1 ? vars.getVarbit(cached.transformVarbit)
+            : cached.transformVarp !== -1 ? vars.getVarp(cached.transformVarp) : -1;
+        const resolved = index >= 0 && index < cached.transforms.length - 1
+            ? cached.transforms[index] : cached.transforms[cached.transforms.length - 1];
+        return resolved === -1 ? null : this.forId(resolved);
+    }
+
     getName(): string { return this.name; }
     getSizeX(): number { return this.sizeX; }
     getSizeY(): number { return this.sizeY; }
